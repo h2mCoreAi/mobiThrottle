@@ -5,11 +5,13 @@ mobithrottle/
   __main__.py        python -m mobithrottle -> app.main()
   app.py             entry: single-instance guard, fonts, splash, controller, settings window,
                      tray, teardown wiring (aboutToQuit / atexit / SIGINT+SIGTERM / excepthook)
-  throttle.py        port of mobiOverlay modules/mobi_throttle/module.py:
-                       _ThrottleBar       floating frameless always-on-top bar (unchanged behavior)
-                       ThrottleController replaces ModuleBase: settings, poll + reconnect timers,
-                                          hotkeys, build_settings(layout) = the old card's controls
-                       detent_crossed / pick_axis / AxisDetector   v1 additions
+  throttle.py        ThrottleController (replaces ModuleBase): settings, poll + reconnect timers,
+                     hotkeys, build_settings(layout); re-exports the names below for compatibility
+  bar.py             _ThrottleBar floating frameless always-on-top bar, Win32 click-through,
+                     colour helpers, default bar position
+  devices.py         _Joysticks single owner (hot-plug, never re-inits), list/find_joystick, chirp
+  widgets.py         settings-panel styles, _Stepper, _HotkeyField
+  detect.py          detent_crossed / pick_axis / AxisDetector (v1 additions)
   settings_window.py card-styled window hosting build_settings(); close = hide to tray
   splash.py          mobiOverlay's splash, same style, "mobiThrottle / by TheRealKestryl"
   config.py          flat config.json next to exe (frozen) / repo root (source); atomic save
