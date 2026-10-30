@@ -11,3 +11,5 @@ config.json.corrupt
 .mobithrottle.lock
 # NOTE: mobithrottle.spec IS committed (reproducible build definition).
 mobiThrottle-crash.log
+
+*.whl
