@@ -126,6 +126,11 @@ def t_live_bar_and_detect():
     axis.live.tick()
     check("live bar follows value", axis.live.value == -0.5)
     axis.live.grab()
+    ctl.axis_stats.add(0.7)
+    for _ in range(sg.READOUT_EVERY_TICKS):
+        ctl._bar.set_value(ctl._bar.value + 0.01)
+        axis.live.tick()
+    check("readout piggybacks on live bar", "raw +0.700" in axis.readout.text())
     g.go(2)
     check("axis list filled", axis.axis_combo.count() >= 1)
     axis.detect()

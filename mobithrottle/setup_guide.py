@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
 )
 
 from . import theme
+from .bar import DEADZONE
 from .devices import list_joysticks, play_home_tick
 from .settings_window import build_card
 from .throttle import ThrottleController
@@ -42,15 +43,18 @@ from .widgets import (
 )
 
 LIVE_REFRESH_MS = 33
+READOUT_EVERY_TICKS = 8  # ~4 Hz text refresh, piggybacks on the live bar timer
 _EXPLAIN_STYLE = theme.text_style(10, color=theme.TEXT_PRIMARY)
 
 
 class LiveBar(QWidget):
     """Small horizontal preview of the current axis value (-1..+1)."""
 
-    def __init__(self, source: Callable[[], float]) -> None:
+    def __init__(self, source: Callable[[], float], on_tick: Callable[[], None] | None = None) -> None:
         super().__init__()
         self._source = source
+        self._on_tick = on_tick
+        self._ticks = 0
         self.value = 0.0
         self.setFixedHeight(22)
         self.setMinimumWidth(220)
@@ -66,6 +70,9 @@ class LiveBar(QWidget):
         if v != self.value:
             self.value = v
             self.update()
+        self._ticks += 1
+        if self._on_tick is not None and self._ticks % READOUT_EVERY_TICKS == 0:
+            self._on_tick()
 
     def paintEvent(self, event) -> None:
         p = QPainter(self)
@@ -141,6 +148,20 @@ class _Step(QWidget):
         return r
 
 
+class _Readout(QLabel):
+    """Display-only axis readout (controller.axis_stats, fed by _poll)."""
+
+    def __init__(self, ctl: ThrottleController) -> None:
+        super().__init__("")
+        self.ctl = ctl
+        self.setWordWrap(True)
+        self.setStyleSheet(theme.text_style(9, color=theme.TEXT_MUTED))
+        self.refresh()
+
+    def refresh(self) -> None:
+        self.setText(self.ctl.axis_stats.text(self.ctl.settings["axis_reverse"], DEADZONE))
+
+
 class WelcomeStep(_Step):
     title = "Welcome"
     explain = (
@@ -202,8 +223,10 @@ class AxisStep(_Step):
         self.axis_combo.setStyleSheet(_COMBO_STYLE)
         self.axis_combo.activated.connect(self._apply_axis)
         self.row(self.label("Axis:"), self.axis_combo)
-        self.live = LiveBar(lambda: self.ctl.current_value)
+        self.readout = _Readout(self.ctl)
+        self.live = LiveBar(lambda: self.ctl.current_value, self.readout.refresh)
         self.body.addWidget(self.live)
+        self.body.addWidget(self.readout)
         self.status = QLabel("")
         self.status.setStyleSheet(_STATUS_STYLE)
         self.status.setWordWrap(True)
@@ -249,8 +272,10 @@ class DirectionStep(_Step):
     explain = "Push your throttle forward: does the bar move the way you expect? If not, tick Reverse."
 
     def build(self) -> None:
-        self.live = LiveBar(lambda: self.ctl.current_value)
+        self.readout = _Readout(self.ctl)
+        self.live = LiveBar(lambda: self.ctl.current_value, self.readout.refresh)
         self.body.addWidget(self.live)
+        self.body.addWidget(self.readout)
         self.reverse = self.check("Reverse", self.s["axis_reverse"], self.ctl.set_axis_reverse)
         self.row(self.reverse)
 

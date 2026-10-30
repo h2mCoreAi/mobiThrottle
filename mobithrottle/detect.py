@@ -1,5 +1,6 @@
 """Pure detent/auto-detect helpers and the AxisDetector (unit-tested)."""
 
+import math
 import time
 from collections.abc import Callable
 
@@ -103,3 +104,65 @@ class AxisDetector(QObject):
 
     def cancel(self) -> None:
         self._timer.stop()
+
+
+REST_WINDOW = 30  # samples (~0.5 s at 60 Hz)
+REST_SPAN = 0.05  # a window this still counts as "at rest"
+
+
+class AxisStats:
+    """Display-only readout fed by the controller's existing 60 Hz poll:
+    raw value, min/max seen, jitter while at rest, and a one-line hint.
+    O(REST_WINDOW) per sample; no timers or threads of its own."""
+
+    def __init__(self) -> None:
+        self.reset()
+
+    def reset(self) -> None:
+        self.raw: float | None = None
+        self.lo = self.hi = None
+        self.rest_value: float | None = None
+        self.rest_jitter: float | None = None
+        self._window: list[float] = []
+
+    def add(self, raw: float) -> None:
+        self.raw = raw
+        self.lo = raw if self.lo is None else min(self.lo, raw)
+        self.hi = raw if self.hi is None else max(self.hi, raw)
+        self._window.append(raw)
+        if len(self._window) > REST_WINDOW:
+            self._window.pop(0)
+        if len(self._window) == REST_WINDOW:
+            span = max(self._window) - min(self._window)
+            if span < REST_SPAN:
+                self.rest_jitter = span
+                self.rest_value = sum(self._window) / REST_WINDOW
+
+    def suggested_deadzone(self, minimum: float) -> float:
+        if self.rest_jitter is None:
+            return minimum
+        return max(minimum, math.ceil(round(self.rest_jitter * 150, 6)) / 100)  # 1.5x jitter, rounded up
+
+    def suggestion(self, reverse: bool, minimum_deadzone: float) -> str:
+        if self.raw is None:
+            return "Move the throttle to see readings."
+        if self.rest_value is None:
+            return "Hold the throttle still for a moment to measure rest jitter."
+        shown = -self.rest_value if reverse else self.rest_value
+        if shown > 0.6:
+            hint = "Rests at the far end: if that's idle, tick Reverse."
+        elif shown < -0.6:
+            hint = "Rests at the near end: direction looks right."
+        else:
+            hint = "Rests near centre: tick Reverse only if forward moves the bar backward."
+        return f"{hint} Suggested deadzone ≥ {self.suggested_deadzone(minimum_deadzone):.2f}."
+
+    def text(self, reverse: bool, minimum_deadzone: float) -> str:
+        def f(v):
+            return "—" if v is None else f"{v:+.3f}"
+
+        jitter = "—" if self.rest_jitter is None else f"{self.rest_jitter:.3f}"
+        return (
+            f"raw {f(self.raw)}   min {f(self.lo)}   max {f(self.hi)}   rest jitter {jitter}\n"
+            + self.suggestion(reverse, minimum_deadzone)
+        )

@@ -269,7 +269,27 @@ def t_indicator_color():
     ctl.shutdown()
 
 
+def t_axis_stats():
+    st = throttle.AxisStats()
+    check("readout empty", "Move the throttle" in st.text(False, 0.03))
+    for v in (-1.0, 0.2, 0.9):
+        st.add(v)
+    check("min/max/raw", st.lo == -1.0 and st.hi == 0.9 and st.raw == 0.9)
+    for i in range(40):
+        st.add(0.98 + (0.004 if i % 2 else 0.0))
+    check("rest jitter measured", st.rest_jitter is not None and abs(st.rest_jitter - 0.004) < 1e-9)
+    check("suggest reverse when resting at far end", "tick Reverse" in st.suggestion(False, 0.03))
+    check("no reverse hint once reversed", "direction looks right" in st.suggestion(True, 0.03))
+    check("deadzone floor", st.suggested_deadzone(0.03) == 0.03)
+    for i in range(40):
+        st.add(0.5 + (0.04 if i % 2 else 0.0))
+    check("deadzone from jitter", st.suggested_deadzone(0.03) == 0.06, st.suggested_deadzone(0.03))
+    st.reset()
+    check("reset", st.raw is None and st.rest_jitter is None)
+
+
 for n, f in [
+    ("axis_stats", t_axis_stats),
     ("indicator_color", t_indicator_color),
     ("single_instance", t_single_instance),
     ("colors", t_colors),

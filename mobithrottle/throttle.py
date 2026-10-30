@@ -50,6 +50,7 @@ from .detect import (  # noqa: F401
     DETECT_MIN_TRAVEL,
     DETECT_SECONDS,
     AxisDetector,
+    AxisStats,
     detent_crossed,
     pick_axis,
 )
@@ -151,6 +152,7 @@ class ThrottleController(QObject):
         self.status_label = None
         self._detector = None
         self._prev_value = 0.0
+        self.axis_stats = AxisStats()
 
         if not pygame.get_init():
             pygame.init()
@@ -474,6 +476,7 @@ class ThrottleController(QObject):
         self.settings["axis_index"] = axis
         self.settings["axis_reverse"] = bool(reverse)
         self._save()
+        self.axis_stats.reset()
         # Force an immediate reconnect against the new selection instead of
         # waiting for the next refresh_interval_seconds tick.
         self._device = None
@@ -526,6 +529,7 @@ class ThrottleController(QObject):
             self._device = None
             self._set_status(RECONNECT_STATUS_UNAVAILABLE)
             return
+        self.axis_stats.add(raw)
         value = -raw if self.settings["axis_reverse"] else raw
         self._bar.set_value(value)
         self._check_home_chirp(value)
@@ -807,6 +811,7 @@ class ThrottleController(QObject):
         self.settings["device_name"] = name
         self.settings["axis_index"] = axis
         self._save()
+        self.axis_stats.reset()
         if self.status_label is not None:
             self.axis_spin.setValue(axis, emit=False)
             self._refresh_device_list()
