@@ -34,3 +34,20 @@ Bump `__version__` in `mobithrottle/__init__.py` first. Python 3.13 is pinned in
 
 `.github/workflows/ci.yml` runs the tests + a PyInstaller smoke build on every push/PR to
 `main`. Release binaries are only ever produced by CI — never upload a locally built zip.
+
+## Supply-chain hardening
+
+- Every GitHub Action is pinned to a full commit SHA (version in a trailing comment).
+  Dependabot (`.github/dependabot.yml`) proposes weekly bumps for actions and pip.
+- CI and release install from `requirements-build.lock` with `--require-hashes --no-deps`:
+  exact versions + SHA256 for every wheel, resolved for Windows / Python 3.13.
+  `requirements*.txt` stay the human-edited inputs. After changing them, regenerate:
+
+  ```
+  pip install uv
+  uv pip compile requirements.txt --python-platform windows --python-version 3.13 --generate-hashes -o requirements.lock
+  uv pip compile requirements-build.txt --python-platform windows --python-version 3.13 --generate-hashes -o requirements-build.lock
+  ```
+  (then restore the two header comment lines). Local dev may still use the `.txt` files.
+- Workflows default to `permissions: contents: read`; only the release job gets
+  `contents/id-token/attestations: write`. CI runs cancel superseded runs per ref; releases never cancel.

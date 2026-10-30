@@ -62,3 +62,9 @@ Append-only. Newest at bottom. Short entries — rationale, not essays.
 - `ci.yml` runs tests + a PyInstaller smoke build on push/PR to main.
 - Code signing (Authenticode) not added: needs a paid cert; attestations give provenance for free. Revisit if SmartScreen warnings become a support issue.
 - `SECURITY.md` added (private advisory reporting).
+
+## 2026-10-30 — CI supply-chain hardening
+- Actions pinned to commit SHAs (tags are mutable; a hijacked tag could inject code into an attested build). Dependabot keeps them current weekly.
+- Hash-locked deps (`requirements*.lock`, uv pip compile for windows/py3.13) installed with `--require-hashes --no-deps`, so a compromised PyPI release can't slip into a release build silently. Dropped the unpinned `pip install --upgrade pip` step.
+- Least privilege: top-level `contents: read`; write scopes only on the release job. Concurrency: CI cancel-in-progress per ref, release queued never cancelled.
+- Note: the lock pulls pyside6-addons/webengine/pdf wheels (the `PySide6` meta-package depends on them). They're installed on the runner but excluded from the bundle by the spec. Switching to `pyside6-essentials` only would speed CI; deferred as a separate change.
