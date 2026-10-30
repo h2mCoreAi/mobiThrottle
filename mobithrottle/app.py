@@ -112,7 +112,9 @@ def _build_tray(app, controller, window, icon):
     menu.addAction(quit_act)
     tray.setContextMenu(menu)
     tray.activated.connect(
-        lambda reason: window.show_and_raise() if reason == QSystemTrayIcon.DoubleClick else None)
+        # Trigger only: on Windows a double-click also emits Trigger, so handling
+        # DoubleClick too would toggle twice.
+        lambda reason: window.toggle_visible() if reason == QSystemTrayIcon.Trigger else None)
     tray._menu = menu  # keep alive
     if QSystemTrayIcon.isSystemTrayAvailable():
         tray.show()

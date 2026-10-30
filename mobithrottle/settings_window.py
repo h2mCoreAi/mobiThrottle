@@ -2,7 +2,7 @@
 whose body is styled like an overlay card (BG_PANEL, cyan border, header
 strip with the two-tone mobiThrottle title) and holds exactly the card's
 controls via ThrottleController.build_settings(). Closing hides to tray."""
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QEvent, Qt, QTimer
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QScrollArea, QVBoxLayout, QWidget
 
 from . import theme
@@ -86,6 +86,26 @@ class SettingsWindow(QWidget):
         self.setWindowState(self.windowState() & ~Qt.WindowMinimized)
         self.raise_()
         self.activateWindow()
+
+    def toggle_visible(self):
+        """Single left-click on the tray icon."""
+        if self.isVisible() and not self.isMinimized():
+            self.hide()
+        else:
+            self.show_and_raise()
+
+    def changeEvent(self, event):
+        # Minimize = hide to tray: a hidden top-level window has no taskbar
+        # button, so the button exists only while settings are open. Deferred
+        # because hiding inside the state-change handler confuses Windows.
+        super().changeEvent(event)
+        if event.type() == QEvent.WindowStateChange and self.isMinimized():
+            QTimer.singleShot(0, self._hide_minimized)
+
+    def _hide_minimized(self):
+        if self.isMinimized():
+            self.hide()
+            self.setWindowState(self.windowState() & ~Qt.WindowMinimized)
 
     allow_close = False  # set by app.request_quit()
 

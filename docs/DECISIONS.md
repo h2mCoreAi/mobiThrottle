@@ -50,3 +50,8 @@ Append-only. Newest at bottom. Short entries — rationale, not essays.
   - pysdl2 (zlib-licensed SDL wrapper): same SDL2.dll underneath (~2–3 MB), so ~10 MB saved at most vs pygame-ce, but ctypes calls bypass pygame's handle bookkeeping (more crash risk, not less) and we'd lose pygame.mixer for the chirp. Not worth it.
   - Raw XInput: Xbox-class pads only; VKB/Virpil/Thrustmaster throttles are DirectInput HID — would break generic support. Raw DirectInput/HID via ctypes: lots of new native code = more crash risk.
   - Tkinter/Win32 UI instead of Qt: biggest possible size cut, but a full rewrite of bar/settings/splash/tray and loses the per-pixel-alpha bar and identical mobiOverlay splash. Rejected for now; slimming Qt gets most of the win.
+
+## 2026-10-30 — Minimize hides settings to tray; single-click tray toggles
+- Minimizing the settings window hides it (deferred from changeEvent), so it leaves the taskbar. A hidden top-level window has no taskbar button, so the button exists only while settings are open. That's the cleanest Windows behavior and needs no Qt.Tool flag, which would cost the window its title bar and Alt-Tab behavior. The throttle bar is a separate window and is unaffected.
+- Single left-click on the tray icon (`Trigger`) toggles settings: show+raise+activate, or hide. DoubleClick is no longer handled because Windows emits Trigger on double-click too. Tray menu, close→hide, and request_quit are unchanged.
+- Build hygiene: `*.whl` gitignored; a stray PySDL2 wheel was committed by mistake and removed. Never commit build artifacts.
