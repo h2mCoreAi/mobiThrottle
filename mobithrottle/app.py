@@ -47,9 +47,37 @@ def _teardown():
             traceback.print_exc()
 
 
+_crash_file = None
+
+
+def _install_crash_log():
+    """faulthandler -> mobiThrottle-crash.log next to the exe, so a native
+    crash (e.g. an access violation in SDL) leaves a Python stack."""
+    global _crash_file
+    try:
+        import faulthandler
+        from .paths import app_root
+        _crash_file = open(app_root() / "mobiThrottle-crash.log", "a", buffering=1, encoding="utf-8")
+        faulthandler.enable(_crash_file, all_threads=True)
+    except Exception:
+        _crash_file = None
+
+
+def _log_exception(exc_type, exc_value, exc_tb):
+    if _crash_file is not None:
+        try:
+            import time
+            _crash_file.write(f"\n--- {time.strftime('%Y-%m-%d %H:%M:%S')} unhandled exception ---\n")
+            traceback.print_exception(exc_type, exc_value, exc_tb, file=_crash_file)
+            _crash_file.flush()
+        except Exception:
+            pass
+
+
 def _install_excepthook():
     def _hook(exc_type, exc_value, exc_tb):
         traceback.print_exception(exc_type, exc_value, exc_tb)
+        _log_exception(exc_type, exc_value, exc_tb)
         if issubclass(exc_type, (KeyboardInterrupt, SystemExit)):
             _teardown()
     sys.excepthook = _hook
@@ -94,6 +122,7 @@ def _build_tray(app, controller, window, icon):
 def main(argv=None):
     global _instance_lock, _controller
     logging.basicConfig(level=logging.INFO, format="%(name)s: %(message)s")
+    _install_crash_log()
     _install_excepthook()
 
     app = QApplication(sys.argv if argv is None else argv)

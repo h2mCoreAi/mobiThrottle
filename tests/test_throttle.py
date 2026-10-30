@@ -94,13 +94,40 @@ def t_pick_axis():
     check("pick largest sweep", pa({(0, 0): (-0.1, 0.1), (0, 2): (-0.9, 0.8), (1, 1): (0, 0.5)}) == (0, 2))
     check("pick none when noise only", pa({(0, 0): (-0.05, 0.05), (1, 3): (0.0, 0.1)}) is None)
     check("pick empty", pa({}) is None)
+    # stick X swept wide but sprang back to center; throttle swept less but stayed put
+    r = {(0, 0): (-1.0, 1.0), (0, 2): (-1.0, 0.4)}
+    e = {(0, 0): (0.0, 0.01), (0, 2): (-1.0, 0.4)}
+    check("prefer axis that stays put over centering stick", pa(r, ends=e) == (0, 2))
+    check("fallback to largest sweep if all centered", pa(r, ends={(0, 0): (0, 0), (0, 2): (0, 0.05)}) == (0, 0))
+
+
+def t_no_reinit():
+    import pygame
+    calls = []
+    orig = pygame.joystick.quit
+    pygame.joystick.quit = lambda: calls.append(1)
+    try:
+        c = Config(tmp / "r.json")
+        ctl = throttle.ThrottleController(c)
+        ctl._try_connect(); throttle.list_joysticks(); throttle.find_joystick(None)
+        d = throttle.AxisDetector(lambda r: None); d.start(); d._sample(); d._finish()
+        ctl.start_detect(); ctl._detector.cancel(); ctl._detector = None
+        for _ in range(3): ctl._poll()
+        ctl.shutdown()
+    finally:
+        pygame.joystick.quit = orig
+    check("joystick subsystem never quit at runtime", not calls)
 
 
 def t_widgets():
     from mobithrottle.settings_window import SettingsWindow
     c = Config(tmp / "w.json")
     ctl = throttle.ThrottleController(c)
+    # Hardware-independent: a real connected joystick's 60 Hz _poll would
+    # overwrite the bar value we set below. Stop polling and drop any device.
+    ctl._poll_timer.stop(); ctl._reconnect_timer.stop(); ctl._device = None
     win = SettingsWindow(ctl)
+    ctl._poll_timer.stop(); ctl._reconnect_timer.stop(); ctl._device = None
     win.show(); app.processEvents()
     bar = ctl._bar
     bar.set_value(0.5); app.processEvents()
@@ -147,7 +174,7 @@ def t_single_instance():
 
 
 for n, f in [("single_instance", t_single_instance), ("colors", t_colors), ("chirp", t_chirp), ("config", t_config), ("detent", t_detent),
-             ("pick_axis", t_pick_axis), ("widgets", t_widgets), ("splash", t_splash)]:
+             ("pick_axis", t_pick_axis), ("widgets", t_widgets), ("no_reinit", t_no_reinit), ("splash", t_splash)]:
     run(n, f)
 
 print(f"\n{'ALL PASSED' if not FAILS else f'{len(FAILS)} FAILED: ' + ', '.join(FAILS)}")
