@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+build/
+dist/
+release/
+config.json
+config.json.tmp
+config.json.corrupt
+.mobithrottle.lock
+# NOTE: mobithrottle.spec IS committed (reproducible build definition).

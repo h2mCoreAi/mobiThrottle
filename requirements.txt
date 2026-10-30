@@ -1,0 +1,3 @@
+PySide6>=6.7
+pygame-ce>=2.5.0   # passive HID joystick reads + home/detent chirp (mixer)
+keyboard>=0.13; sys_platform == "win32"   # optional global hotkeys (WH_KEYBOARD_LL), installed only if a hotkey is set
