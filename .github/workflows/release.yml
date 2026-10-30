@@ -17,6 +17,11 @@ permissions:
   id-token: write       # OIDC token for Sigstore signing
   attestations: write   # store the attestation
 
+# Never cancel a release mid-publish; queue a second tag push instead.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: windows-latest
