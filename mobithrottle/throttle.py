@@ -133,6 +133,8 @@ class ThrottleController(QObject):
         "detent_2": None,
         "detent_1_chirp": False,
         "detent_2_chirp": False,
+        # Indicator turns green above zero / red below (track unchanged).
+        "centre_zero_colors": False,
     }
 
     def __init__(self, config) -> None:
@@ -286,6 +288,13 @@ class ThrottleController(QObject):
         colors_row.addWidget(self.bg_color_btn)
         colors_row.addStretch()
         layout.addLayout(colors_row)
+
+        self.centre_zero_check = QCheckBox("Centre-zero colours")
+        self.centre_zero_check.setStyleSheet(_CHECK_STYLE)
+        self.centre_zero_check.setToolTip("Indicator green above zero, red below; line colour near zero")
+        self.centre_zero_check.setChecked(self.settings["centre_zero_colors"])
+        self.centre_zero_check.toggled.connect(self.set_centre_zero_colors)
+        layout.addWidget(self.centre_zero_check)
 
         layout.addWidget(_hline())
         layout.addWidget(_section_header("HOTKEYS"))
@@ -471,6 +480,11 @@ class ThrottleController(QObject):
         if self.request_refresh is not None:
             self.request_refresh()
         return axis
+
+    def set_centre_zero_colors(self, enabled: bool) -> None:
+        self.settings["centre_zero_colors"] = bool(enabled)
+        self._save()
+        self._bar.update()
 
     def set_axis_reverse(self, reverse: bool) -> None:
         self.settings["axis_reverse"] = bool(reverse)
@@ -816,6 +830,7 @@ class ThrottleController(QObject):
             (self.bg_opacity_slider, lambda w: w.setValue(round(on["bg_opacity"] * 100))),
             (self.line_opacity_slider, lambda w: w.setValue(round(on["line_opacity"] * 100))),
             (self.chirp_enabled_check, lambda w: w.setChecked(on["home_chirp_enabled"])),
+            (self.centre_zero_check, lambda w: w.setChecked(on["centre_zero_colors"])),
         )
         for widget, apply in pairs:
             widget.blockSignals(True)

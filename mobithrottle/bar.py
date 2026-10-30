@@ -45,6 +45,11 @@ PANEL_RADIUS_RATIO = 0.22
 PANEL_RADIUS_MIN = 8
 PANEL_RADIUS_MAX = 40
 KNOB_HIGHLIGHT = "#e4e9f5"
+# Centre-zero indicator colours (opt-in): fixed on purpose, no extra pickers.
+FORWARD_COLOR = "#5ee08a"  # value above the zero point
+REVERSE_COLOR = "#ff6b5a"  # value below the zero point
+ZERO_BAND = DEADZONE  # within this of zero the indicator keeps the line colour
+DISCONNECTED_COLOR = theme.TEXT_DIM
 
 
 def panel_radius_for(w: int, h: int) -> int:
@@ -71,6 +76,17 @@ def value_to_color(abs_val: float, line_color: str) -> str:
     span = max(1e-9, 1.0 - DEADZONE)
     t = max(0.0, min(1.0, (abs_val - DEADZONE) / span))
     return lerp_color(line_color, theme.ACCENT_AMBER, t)
+
+
+def indicator_color(value: float, line_color: str, centre_zero: bool, zero: float = 0.0) -> str:
+    """Colour of the moving indicator only (the track keeps line_color).
+    Zero point is the axis centre / home (0.0): mobiThrottle has no separate
+    home-position setting; home chirp uses the same centre."""
+    if not centre_zero:
+        return value_to_color(abs(value), line_color)
+    if abs(value - zero) < ZERO_BAND:
+        return line_color
+    return FORWARD_COLOR if value > zero else REVERSE_COLOR
 
 
 def _default_bar_position() -> tuple[int, int]:
@@ -209,7 +225,9 @@ class _ThrottleBar(QWidget):
             x1, y1 = to_xy(along1, cross1)
             return QRectF(min(x0, x1), min(y0, y1), abs(x1 - x0), abs(y1 - y0))
 
-        line_color = s["line_color"]
+        line_color = DISCONNECTED_COLOR if self.disconnected else s["line_color"]
+        if self.disconnected:
+            painter.setOpacity(s["line_opacity"] * 0.45)
         dim = dim_color(line_color)
         cross0, cross1 = TRACK_MARGIN, thickness - TRACK_MARGIN
 
@@ -260,7 +278,11 @@ class _ThrottleBar(QWidget):
         # Knob.
         half = KNOB_POP_HALF_THICKNESS if self._module.is_home_flashing() else KNOB_HALF_THICKNESS
         pos_along = (self.value + 1.0) / 2.0 * length
-        knob_color = value_to_color(abs(self.value), line_color)
+        knob_color = (
+            DISCONNECTED_COLOR
+            if self.disconnected
+            else indicator_color(self.value, line_color, bool(s.get("centre_zero_colors")))
+        )
         painter.setPen(QPen(QColor(s["bg_color"]), 1))
         painter.setBrush(QColor(knob_color))
         painter.drawRoundedRect(
@@ -273,6 +295,13 @@ class _ThrottleBar(QWidget):
         painter.setPen(QPen(QColor(KNOB_HIGHLIGHT), 1))
         painter.drawLine(QPointF(hx0, hy0), QPointF(hx1, hy1))
         painter.end()
+
+    disconnected = False  # greyed while the selected device is unplugged
+
+    def set_disconnected(self, disconnected: bool) -> None:
+        if disconnected != self.disconnected:
+            self.disconnected = disconnected
+            self.update()
 
     def set_value(self, value: float):
         # Lightweight: only repaint when the axis actually moved.

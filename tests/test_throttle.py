@@ -250,7 +250,27 @@ def t_single_instance():
     check("lock released on exit", True)
 
 
+def t_indicator_color():
+    from mobithrottle import bar
+
+    ic = bar.indicator_color
+    lc = "#6ec8ff"
+    check("centre-zero off = legacy colour", ic(0.8, lc, False) == bar.value_to_color(0.8, lc))
+    check("centre-zero forward", ic(0.5, lc, True) == bar.FORWARD_COLOR)
+    check("centre-zero reverse", ic(-0.5, lc, True) == bar.REVERSE_COLOR)
+    check("centre-zero neutral band", ic(0.01, lc, True) == lc and ic(-0.02, lc, True) == lc)
+    c = Config(tmp / "cz.json")
+    ctl = throttle.ThrottleController(c)
+    check("centre-zero default off", ctl.settings["centre_zero_colors"] is False)
+    ctl.set_centre_zero_colors(True)
+    check("centre-zero saved", Config(c.path).settings["centre_zero_colors"] is True)
+    ctl._bar.set_value(-0.6)
+    ctl._bar.grab()
+    ctl.shutdown()
+
+
 for n, f in [
+    ("indicator_color", t_indicator_color),
     ("single_instance", t_single_instance),
     ("colors", t_colors),
     ("chirp", t_chirp),

@@ -80,6 +80,8 @@ def t_writes_settings():
     step(g, sg.LayoutStep).combo.setCurrentText("Horizontal")
     check("orientation saved", Config(c.path).settings["orientation"] == "horizontal")
     colors = step(g, sg.ColorsStep)
+    colors.centre_zero.setChecked(True)
+    check("guide centre-zero saved", Config(c.path).settings["centre_zero_colors"] is True)
     colors.line_slider.setValue(40)
     ctl.set_line_color("#123456")
     s = Config(c.path).settings

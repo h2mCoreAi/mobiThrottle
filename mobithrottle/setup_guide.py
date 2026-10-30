@@ -289,6 +289,12 @@ class ColorsStep(_Step):
         self.body.addWidget(self.label("Background opacity:"))
         self.bg_slider = self._slider(self.s["bg_opacity"], self.ctl._on_bg_opacity_changed)
         self.body.addWidget(self.bg_slider)
+        self.centre_zero = self.check(
+            "Centre-zero colours (indicator green above zero, red below)",
+            self.s["centre_zero_colors"],
+            self.ctl.set_centre_zero_colors,
+        )
+        self.body.addWidget(self.centre_zero)
 
     def _slider(self, initial: float, slot) -> QSlider:
         sl = QSlider(Qt.Horizontal)
