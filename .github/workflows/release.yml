@@ -1,0 +1,77 @@
+name: Build and release Windows app
+
+# Builds the mobiThrottle onedir folder with PyInstaller from mobithrottle.spec
+# (the same spec anyone can use locally — see BUILD.md) and publishes it as a
+# GitHub Release zip whenever a version tag (v*.*.*) is pushed. Mirrors
+# mobiOverlay's release workflow, minus the OCR/torch steps.
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-build.txt
+
+      - name: Run tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+          SDL_VIDEODRIVER: dummy
+          SDL_AUDIODRIVER: dummy
+        run: python tests/test_throttle.py
+
+      - name: Build onedir folder
+        run: pyinstaller mobithrottle.spec --noconfirm
+
+      - name: Assemble release folder
+        shell: pwsh
+        run: |
+          $releaseDir = "release/mobiThrottle"
+          New-Item -ItemType Directory -Force -Path $releaseDir | Out-Null
+          # Onedir: exe + _internal/ must stay together
+          Copy-Item "dist/mobiThrottle/*" $releaseDir -Recurse
+          Copy-Item "README.md" "$releaseDir/README.md" -ErrorAction SilentlyContinue
+          Copy-Item "LICENSE" "$releaseDir/LICENSE.txt" -ErrorAction SilentlyContinue
+
+      - name: Zip and checksum
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}"
+          $zipName = "mobiThrottle-$version-windows.zip"
+          Compress-Archive -Path "release/mobiThrottle" -DestinationPath $zipName
+          $hash = Get-FileHash $zipName -Algorithm SHA256
+          "$($hash.Hash)  $zipName" | Out-File "$zipName.sha256" -Encoding ascii
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            mobiThrottle-*-windows.zip
+            mobiThrottle-*-windows.zip.sha256
+          body: |
+            **mobiThrottle** by TheRealKestryl — onedir package. Extract the
+            zip once, then run `mobiThrottle/mobiThrottle.exe`. Keep the whole
+            folder together (`_internal/` is required).
+
+            Automated build from source at this tag by
+            `.github/workflows/release.yml`. Verify the download's SHA256
+            against the attached `.sha256` file. Build it yourself: see `BUILD.md`.
