@@ -179,11 +179,13 @@ def main(argv: list[str] | None = None) -> int:
     heartbeat.start(500)
 
     splash.finish(window)
-    # First run, or no tray available: show settings so the user can find it.
-    if controller.first_run or not QSystemTrayIcon.isSystemTrayAvailable():
+    # No tray available: show settings so the user can find the app. On
+    # first run the setup guide opens instead (below).
+    if not controller.first_run and not QSystemTrayIcon.isSystemTrayAvailable():
         window.show_and_raise()
+    # First run: the setup guide replaces the old silent auto-detect.
     if controller.first_run:
-        QTimer.singleShot(300, controller.start_detect)
+        QTimer.singleShot(300, window.open_setup_guide)
 
     smoke_ms = int(os.environ.get("MOBITHROTTLE_SMOKE_MS", "0") or 0)
     if smoke_ms > 0:

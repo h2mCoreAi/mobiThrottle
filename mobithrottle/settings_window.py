@@ -4,10 +4,11 @@ strip with the two-tone mobiThrottle title) and holds exactly the card's
 controls via ThrottleController.build_settings(). Closing hides to tray."""
 
 from PySide6.QtCore import QEvent, Qt, QTimer
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QScrollArea, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton, QScrollArea, QVBoxLayout, QWidget
 
 from . import theme
 from .throttle import ThrottleController
+from .widgets import _TOGGLE_BTN_STYLE
 
 
 class _CardFrame(QFrame):
@@ -80,7 +81,13 @@ class SettingsWindow(QWidget):
         body_layout = QVBoxLayout(body)
         body_layout.setContentsMargins(12, 10, 12, 12)
         body_layout.setSpacing(8)
+        guide_btn = QPushButton("SETUP GUIDE")
+        guide_btn.setStyleSheet(_TOGGLE_BTN_STYLE)
+        guide_btn.setToolTip("Step-by-step setup: device, axis, look, chirp, detents, hotkeys")
+        guide_btn.clicked.connect(self.open_setup_guide)
+        self.guide_btn = guide_btn
         controller.build_settings(body_layout, self)
+        body_layout.insertWidget(1, guide_btn)
         body_layout.addStretch()
 
         scroll = QScrollArea()
@@ -94,6 +101,20 @@ class SettingsWindow(QWidget):
         outer.addWidget(card)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.resize(420, 760)
+
+    setup_guide = None
+
+    def open_setup_guide(self) -> None:
+        """Open (or raise) the setup guide. Lazy import: setup_guide imports
+        build_card from this module."""
+        if self.setup_guide is None:
+            from .setup_guide import SetupGuide
+
+            self.setup_guide = SetupGuide(self.controller, self.windowIcon())
+        self.setup_guide.go(0)
+        self.setup_guide.show()
+        self.setup_guide.raise_()
+        self.setup_guide.activateWindow()
 
     def show_and_raise(self) -> None:
         self.show()
