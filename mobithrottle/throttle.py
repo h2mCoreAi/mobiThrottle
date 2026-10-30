@@ -84,6 +84,8 @@ class ThrottleController(QObject):
 
     bar_visibility_changed = Signal(bool)
     click_through_changed = Signal(bool)
+    # Emitted when an auto-detect finishes: (guid, name, axis) or None.
+    detect_finished = Signal(object)
 
     module_id = "mobi_throttle"
     display_name = (
@@ -445,24 +447,39 @@ class ThrottleController(QObject):
 
     def _on_apply_device_clicked(self):
         selection = self.device_combo.currentIndex()
-        axis = self.axis_spin.value()
-        if selection <= 0:
+        entry = self._device_list[selection - 1] if selection > 0 else None
+        axis = self.apply_device(entry, self.axis_spin.value(), self.axis_reverse_check.isChecked())
+        self.axis_spin.setValue(axis)
+
+    def apply_device(self, entry: dict | None, axis: int, reverse: bool) -> int:
+        """Select a device (a list_joysticks() entry, or None = auto/first)
+        plus axis/reverse, save, and reconnect. Returns the clamped axis.
+        Shared by the settings window and the setup guide."""
+        if entry is None:
             self.settings["device_guid"] = None
             self.settings["device_name"] = None
         else:
-            entry = self._device_list[selection - 1]
             self.settings["device_guid"] = entry["guid"]
             self.settings["device_name"] = entry["name"]
             axis = min(axis, max(0, entry["numaxes"] - 1))
-            self.axis_spin.setValue(axis)
         self.settings["axis_index"] = axis
-        self.settings["axis_reverse"] = self.axis_reverse_check.isChecked()
+        self.settings["axis_reverse"] = bool(reverse)
         self._save()
         # Force an immediate reconnect against the new selection instead of
         # waiting for the next refresh_interval_seconds tick.
         self._device = None
         if self.request_refresh is not None:
             self.request_refresh()
+        return axis
+
+    def set_axis_reverse(self, reverse: bool) -> None:
+        self.settings["axis_reverse"] = bool(reverse)
+        self._save()
+
+    @property
+    def current_value(self) -> float:
+        """Latest axis value as drawn on the bar (reverse already applied)."""
+        return self._bar.value
 
     def _try_connect(self):
         # Cheap: device set is maintained by hot-plug events, no re-init.
@@ -601,24 +618,32 @@ class ThrottleController(QObject):
             QColor(self.settings["line_color"]), self._settings_parent, "Line color"
         )
         if color.isValid():
-            self.settings["line_color"] = color.name()
+            self.set_line_color(color.name())
+
+    def set_line_color(self, hex_color: str) -> None:
+        self.settings["line_color"] = hex_color
+        if getattr(self, "line_color_btn", None) is not None:
             self.line_color_btn.setStyleSheet(
-                f"background: {color.name()}; border: 1px solid {theme.BORDER_FLAT}; border-radius: 4px;"
+                f"background: {hex_color}; border: 1px solid {theme.BORDER_FLAT}; border-radius: 4px;"
             )
-            self._save()
-            self._bar.update()
+        self._save()
+        self._bar.update()
 
     def _on_pick_bg_color(self):
         color = QColorDialog.getColor(
             QColor(self.settings["bg_color"]), self._settings_parent, "Background color"
         )
         if color.isValid():
-            self.settings["bg_color"] = color.name()
+            self.set_bg_color(color.name())
+
+    def set_bg_color(self, hex_color: str) -> None:
+        self.settings["bg_color"] = hex_color
+        if getattr(self, "bg_color_btn", None) is not None:
             self.bg_color_btn.setStyleSheet(
-                f"background: {color.name()}; border: 1px solid {theme.BORDER_FLAT}; border-radius: 4px;"
+                f"background: {hex_color}; border: 1px solid {theme.BORDER_FLAT}; border-radius: 4px;"
             )
-            self._save()
-            self._bar.update()
+        self._save()
+        self._bar.update()
 
     # -- hotkeys ------------------------------------------------------
     def _apply_hotkeys(self):
@@ -761,6 +786,7 @@ class ThrottleController(QObject):
             self.detect_btn.setEnabled(True)
         if result is None:
             self._set_status("No movement detected — try Detect again")
+            self.detect_finished.emit(None)
             return
         guid, name, axis = result
         self.settings["device_guid"] = guid
@@ -772,6 +798,40 @@ class ThrottleController(QObject):
             self._refresh_device_list()
         self._device = None
         self._reconnect_tick()
+        self.detect_finished.emit(result)
+
+    def sync_settings_widgets(self) -> None:
+        """Re-read settings into the settings-window controls (after the
+        setup guide changed them). Signals blocked: values are already saved."""
+        if self.status_label is None:
+            return
+        on = self.settings
+        pairs = (
+            (self.click_through_check, lambda w: w.setChecked(on["click_through"])),
+            (self.axis_reverse_check, lambda w: w.setChecked(on["axis_reverse"])),
+            (
+                self.orientation_combo,
+                lambda w: w.setCurrentText("Horizontal" if on["orientation"] == "horizontal" else "Vertical"),
+            ),
+            (self.bg_opacity_slider, lambda w: w.setValue(round(on["bg_opacity"] * 100))),
+            (self.line_opacity_slider, lambda w: w.setValue(round(on["line_opacity"] * 100))),
+            (self.chirp_enabled_check, lambda w: w.setChecked(on["home_chirp_enabled"])),
+        )
+        for widget, apply in pairs:
+            widget.blockSignals(True)
+            apply(widget)
+            widget.blockSignals(False)
+        self.axis_spin.setValue(on["axis_index"], emit=False)
+        self.chirp_count_spin.setValue(on["home_chirp_count"], emit=False)
+        self.toggle_hotkey_field.setText(on["toggle_hotkey_display"] or "Click to set…")
+        self.position_hotkey_field.setText(on["position_hotkey_display"] or "Click to set…")
+        for which in ("line", "bg"):
+            getattr(self, f"{which}_color_btn").setStyleSheet(
+                f"background: {on[which + '_color']}; border: 1px solid {theme.BORDER_FLAT}; border-radius: 4px;"
+            )
+        self._update_toggle_btn_text()
+        self._render_detents()
+        self._refresh_device_list()
 
     def shutdown(self) -> None:
         """Releases the two OS-level global keyboard hooks this module
