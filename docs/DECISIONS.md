@@ -68,3 +68,9 @@ Append-only. Newest at bottom. Short entries — rationale, not essays.
 - Hash-locked deps (`requirements*.lock`, uv pip compile for windows/py3.13) installed with `--require-hashes --no-deps`, so a compromised PyPI release can't slip into a release build silently. Dropped the unpinned `pip install --upgrade pip` step.
 - Least privilege: top-level `contents: read`; write scopes only on the release job. Concurrency: CI cancel-in-progress per ref, release queued never cancelled.
 - Note: the lock pulls pyside6-addons/webengine/pdf wheels (the `PySide6` meta-package depends on them). They're installed on the runner but excluded from the bundle by the spec. Switching to `pyside6-essentials` only would speed CI; deferred as a separate change.
+
+## 2026-10-30 — Code cleanup (behavior-preserving)
+- `pyproject.toml` holds ruff config (E,F,W,I,UP,B,SIM; line length 110; quotes preserved). CI `lint` job runs `ruff check` + `ruff format --check` with ruff hash-locked in `requirements-lint.lock`.
+- Removed dead code: unused theme helpers vendored from mobiOverlay (font-scale options, grid snap, row/action styles), write-only `_rescan_requested`/`_joysticks_scanned_at`, unused `joystick_plugged_in`, `_ThrottleBar.apply_geometry`, unused rescan constants.
+- Split the 1.4k-line throttle.py into bar.py / devices.py / widgets.py / detect.py. Code moved verbatim (line-multiset check: every original line present); throttle.py re-exports the moved names so `throttle.X` callers/tests still work.
+- Public functions type-hinted. No feature or UI changes.

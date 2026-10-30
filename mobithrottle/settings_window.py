@@ -2,6 +2,7 @@
 whose body is styled like an overlay card (BG_PANEL, cyan border, header
 strip with the two-tone mobiThrottle title) and holds exactly the card's
 controls via ThrottleController.build_settings(). Closing hides to tray."""
+
 from PySide6.QtCore import QEvent, Qt, QTimer
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QScrollArea, QVBoxLayout, QWidget
 
@@ -14,7 +15,7 @@ class _CardFrame(QFrame):
 
 
 class SettingsWindow(QWidget):
-    def __init__(self, controller: ThrottleController, icon=None):
+    def __init__(self, controller: ThrottleController, icon=None) -> None:
         super().__init__()
         self.controller = controller
         self.setWindowTitle("mobiThrottle — Settings")
@@ -54,11 +55,15 @@ class SettingsWindow(QWidget):
         hl.addWidget(dot)
         title = QLabel(controller.display_name)
         title.setTextInteractionFlags(Qt.NoTextInteraction)
-        title.setStyleSheet(f'font-family: "{theme.FONT_DISPLAY}"; font-weight: 700; font-size: {theme.fpx(11)}px;')
+        title.setStyleSheet(
+            f'font-family: "{theme.FONT_DISPLAY}"; font-weight: 700; font-size: {theme.fpx(11)}px;'
+        )
         hl.addWidget(title)
         hl.addStretch()
-        byline = QLabel(f'<span style="color:{theme.TEXT_MUTED};">by </span>'
-                        f'<span style="color:{theme.ACCENT_CYAN};">TheRealKestryl</span>')
+        byline = QLabel(
+            f'<span style="color:{theme.TEXT_MUTED};">by </span>'
+            f'<span style="color:{theme.ACCENT_CYAN};">TheRealKestryl</span>'
+        )
         byline.setStyleSheet(f'font-family: "{theme.FONT_MONO}"; font-size: {theme.fpx(9)}px;')
         hl.addWidget(byline)
         card_layout.addWidget(header)
@@ -74,27 +79,29 @@ class SettingsWindow(QWidget):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.NoFrame)
-        scroll.setStyleSheet("QScrollArea { background: transparent; } QScrollArea > QWidget > QWidget { background: transparent; }")
+        scroll.setStyleSheet(
+            "QScrollArea { background: transparent; } QScrollArea > QWidget > QWidget { background: transparent; }"
+        )
         scroll.setWidget(body)
         card_layout.addWidget(scroll)
         outer.addWidget(card)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.resize(420, 760)
 
-    def show_and_raise(self):
+    def show_and_raise(self) -> None:
         self.show()
         self.setWindowState(self.windowState() & ~Qt.WindowMinimized)
         self.raise_()
         self.activateWindow()
 
-    def toggle_visible(self):
+    def toggle_visible(self) -> None:
         """Single left-click on the tray icon."""
         if self.isVisible() and not self.isMinimized():
             self.hide()
         else:
             self.show_and_raise()
 
-    def changeEvent(self, event):
+    def changeEvent(self, event) -> None:
         # Minimize = hide to tray: a hidden top-level window has no taskbar
         # button, so the button exists only while settings are open. Deferred
         # because hiding inside the state-change handler confuses Windows.
@@ -109,7 +116,7 @@ class SettingsWindow(QWidget):
 
     allow_close = False  # set by app.request_quit()
 
-    def closeEvent(self, event):
+    def closeEvent(self, event) -> None:
         # Close = hide to tray; Quit lives in the tray menu.
         if self.allow_close:
             event.accept()

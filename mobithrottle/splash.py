@@ -11,7 +11,8 @@ any window exists to show progress in. This gives the user something to
 look at instead of a frozen/absent window during that window, styled like
 the rest of the HUD (void background, cyan border, mobiOverlay wordmark).
 """
-from PySide6.QtCore import Qt, QRectF
+
+from PySide6.QtCore import QRectF, Qt
 from PySide6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPainterPath, QPen, QPixmap
 from PySide6.QtWidgets import QWidget
 
@@ -34,12 +35,14 @@ def _draw_two_tone(painter: QPainter, font: QFont, left_text: str, right_text: s
     painter.setPen(QColor(theme.TEXT_PRIMARY))
     painter.drawText(
         QRectF(start_x, y, left_width + 2, h),
-        Qt.AlignLeft | Qt.AlignVCenter, left_text,
+        Qt.AlignLeft | Qt.AlignVCenter,
+        left_text,
     )
     painter.setPen(QColor(theme.ACCENT_CYAN))
     painter.drawText(
         QRectF(start_x + left_width, y, right_width + 4, h),
-        Qt.AlignLeft | Qt.AlignVCenter, right_text,
+        Qt.AlignLeft | Qt.AlignVCenter,
+        right_text,
     )
 
 
@@ -60,15 +63,23 @@ def _build_pixmap() -> QPixmap:
     # in the blue accent — same split used everywhere else (see
     # host/main_window.py's _TitleBar and every module's display_name).
     _draw_two_tone(
-        painter, QFont(theme.FONT_DISPLAY, 18, QFont.Weight.Bold),
-        "mobi", "Throttle", y=34, h=34,
+        painter,
+        QFont(theme.FONT_DISPLAY, 18, QFont.Weight.Bold),
+        "mobi",
+        "Throttle",
+        y=34,
+        h=34,
     )
     # "by TheRealKestryl" byline, centered below the wordmark: "by " in white,
     # "TheRealKestryl" in the same blue accent — mirrors _TitleBar's byline but
     # centered on its own line rather than trailing inline.
     _draw_two_tone(
-        painter, QFont(theme.FONT_DISPLAY, 10, QFont.Weight.DemiBold),
-        "by ", "TheRealKestryl", y=70, h=22,
+        painter,
+        QFont(theme.FONT_DISPLAY, 10, QFont.Weight.DemiBold),
+        "by ",
+        "TheRealKestryl",
+        y=70,
+        h=22,
     )
 
     painter.end()
@@ -80,7 +91,7 @@ class Splash(QWidget):
     blocks for a full second on every launch (Qt 6.11, measured 1.03s vs
     0.02s for this) waiting for an expose event before returning."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(None, Qt.SplashScreen | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
         self.setAttribute(Qt.WA_TranslucentBackground)
         self._pixmap = _build_pixmap()
@@ -89,20 +100,20 @@ class Splash(QWidget):
         screen = self.screen().availableGeometry()
         self.move(screen.center() - self.rect().center())
 
-    def show_message(self, text: str):
+    def show_message(self, text: str) -> None:
         self._message = text
         # Force an immediate repaint — the caller is about to block the event
         # loop with a slow synchronous call (module import, API fetch), so
         # there won't be a natural repaint opportunity otherwise.
         self.repaint()
 
-    def finish(self, _window):
+    def finish(self, _window) -> None:
         self.close()
 
-    def mousePressEvent(self, event):
+    def mousePressEvent(self, event) -> None:
         self.hide()
 
-    def paintEvent(self, event):
+    def paintEvent(self, event) -> None:
         painter = QPainter(self)
         painter.drawPixmap(0, 0, self._pixmap)
         painter.setPen(QColor(theme.TEXT_MUTED))
@@ -116,5 +127,5 @@ def show_splash() -> Splash:
     return splash
 
 
-def set_status(splash: Splash, text: str):
+def set_status(splash: Splash, text: str) -> None:
     splash.show_message(text)

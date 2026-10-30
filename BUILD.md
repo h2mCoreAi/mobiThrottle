@@ -11,6 +11,7 @@ py -3.12 -m venv .venv
 .venv\Scripts\Activate.ps1
 pip install -r requirements-build.txt
 python tests\test_throttle.py          # must print ALL PASSED
+ruff check . && ruff format --check .  # lint (pip install -r requirements-lint.txt)
 pyinstaller mobithrottle.spec --noconfirm
 # -> dist\mobiThrottle\mobiThrottle.exe
 ```

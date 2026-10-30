@@ -2,6 +2,7 @@
 from source). Flat dict of the same setting keys the mobiOverlay module
 stored under modules.mobi_throttle — so an overlay user can paste that
 section in as-is. Defaults live in ThrottleController.DEFAULTS."""
+
 import json
 import logging
 import os
@@ -20,11 +21,12 @@ def default_config_path() -> Path:
 
 def default_settings() -> dict:
     from .throttle import ThrottleController
+
     return dict(ThrottleController.DEFAULTS)
 
 
 class Config:
-    def __init__(self, path: Path | None = None):
+    def __init__(self, path: Path | None = None) -> None:
         self.path = Path(path) if path else default_config_path()
         self.existed = self.path.exists()
         self.settings = self._load()
@@ -46,7 +48,7 @@ class Config:
         logger.warning("config.json was unreadable; starting with defaults")
         return {}
 
-    def save(self):
+    def save(self) -> None:
         """Atomic write (temp file + replace) so a crash never truncates it."""
         tmp = self.path.with_suffix(".json.tmp")
         try:

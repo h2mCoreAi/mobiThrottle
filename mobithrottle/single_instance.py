@@ -13,8 +13,8 @@ msvcrt on Windows). The lock is held for the process's lifetime — closing or
 crashing releases it automatically, no cleanup code needed. A second instance
 that tries to acquire the same lock fails immediately and can show a dialog.
 """
+
 import sys
-from pathlib import Path
 
 from .paths import app_root
 
@@ -23,6 +23,7 @@ LOCK_FILENAME = ".mobithrottle.lock"
 
 class SingleInstanceError(Exception):
     """Another mobiThrottle instance is already running."""
+
     pass
 
 
@@ -37,11 +38,11 @@ class SingleInstance:
             main()
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._lock_path = app_root() / LOCK_FILENAME
         self._lock_file = None
 
-    def __enter__(self):
+    def __enter__(self) -> "SingleInstance":
         self._lock_path.parent.mkdir(parents=True, exist_ok=True)
         try:
             self._lock_file = open(self._lock_path, "w")
@@ -50,6 +51,7 @@ class SingleInstance:
 
         if sys.platform == "win32":
             import msvcrt
+
             try:
                 msvcrt.locking(self._lock_file.fileno(), msvcrt.LK_NBLCK, 1)
             except OSError:
@@ -61,33 +63,35 @@ class SingleInstance:
                     "hook used for hotkeys can block game input if two copies "
                     "are competing.\n\n"
                     "Check your system tray or Task Manager."
-                )
+                ) from None
         else:
             import fcntl
+
             try:
                 fcntl.flock(self._lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
             except OSError:
                 self._lock_file.close()
                 self._lock_file = None
                 raise SingleInstanceError(
-                    "mobiThrottle is already running.\n\n"
-                    "Only one instance can run at a time."
-                )
+                    "mobiThrottle is already running.\n\nOnly one instance can run at a time."
+                ) from None
 
         self._lock_file.write(str(sys.executable))
         self._lock_file.flush()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         if self._lock_file is not None:
             if sys.platform == "win32":
                 import msvcrt
+
                 try:
                     msvcrt.locking(self._lock_file.fileno(), msvcrt.LK_UNLCK, 1)
                 except OSError:
                     pass
             else:
                 import fcntl
+
                 try:
                     fcntl.flock(self._lock_file.fileno(), fcntl.LOCK_UN)
                 except OSError:

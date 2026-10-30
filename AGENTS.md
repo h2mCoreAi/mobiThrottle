@@ -13,7 +13,7 @@ network access. Redraw only on change. Ask the owner before adding a setting.
 ## Layout
 
 See `docs/ARCHITECTURE.md` for the full map. Key files: `mobithrottle/app.py` (entry + tray + teardown),
-`mobithrottle/throttle.py` (bar + controller), `mobithrottle/settings_window.py`, `mobithrottle/config.py`,
+`mobithrottle/throttle.py` (controller; bar/devices/widgets/detect split out), `mobithrottle/settings_window.py`, `mobithrottle/config.py`,
 `tests/test_throttle.py`, `mobithrottle.spec`, `.github/workflows/release.yml`, `.github/workflows/ci.yml`, `SECURITY.md`.
 
 ## Run from source

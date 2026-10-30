@@ -5,6 +5,7 @@
 - assets_dir(): bundled read-only assets (fonts, icon). Inside _internal/
   when frozen (sys._MEIPASS), mobithrottle/assets/ from source.
 """
+
 import sys
 from pathlib import Path
 

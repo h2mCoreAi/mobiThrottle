@@ -1,5 +1,6 @@
 """PyInstaller entry point (a script, so the package's relative imports work).
 Equivalent to `python -m mobithrottle`."""
+
 import sys
 
 from mobithrottle.app import main
