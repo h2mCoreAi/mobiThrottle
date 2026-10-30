@@ -14,6 +14,54 @@ class _CardFrame(QFrame):
     pass
 
 
+def build_card(title_text: str) -> tuple[QFrame, QVBoxLayout]:
+    """The card body + two-tone header strip shared by the settings window
+    and the setup guide. Returns (card, card_layout); header already added."""
+    card = _CardFrame()
+    card.setStyleSheet(f"""
+        _CardFrame {{
+            background: {theme.BG_PANEL};
+            border: 1px solid {theme.BORDER_CYAN};
+            border-radius: {theme.RADIUS}px;
+        }}
+    """)
+    card_layout = QVBoxLayout(card)
+    card_layout.setContentsMargins(0, 0, 0, 0)
+    card_layout.setSpacing(0)
+
+    header = QFrame()
+    header.setObjectName("hdr")
+    header.setFixedHeight(theme.CARD_HEADER_HEIGHT)
+    header.setStyleSheet(f"""
+        QFrame#hdr {{
+            background: {theme.BG_PANEL_HEADER};
+            border-top-left-radius: {theme.RADIUS}px;
+            border-top-right-radius: {theme.RADIUS}px;
+            border-bottom: 1px solid {theme.BORDER_FLAT};
+        }}
+    """)
+    hl = QHBoxLayout(header)
+    hl.setContentsMargins(12, 0, 10, 0)
+    dot = QLabel("●")
+    dot.setStyleSheet(f"color: {theme.ACCENT_CYAN}; font-size: {theme.fpx(9)}px;")
+    hl.addWidget(dot)
+    title = QLabel(title_text)
+    title.setTextInteractionFlags(Qt.NoTextInteraction)
+    title.setStyleSheet(
+        f'font-family: "{theme.FONT_DISPLAY}"; font-weight: 700; font-size: {theme.fpx(11)}px;'
+    )
+    hl.addWidget(title)
+    hl.addStretch()
+    byline = QLabel(
+        f'<span style="color:{theme.TEXT_MUTED};">by </span>'
+        f'<span style="color:{theme.ACCENT_CYAN};">TheRealKestryl</span>'
+    )
+    byline.setStyleSheet(f'font-family: "{theme.FONT_MONO}"; font-size: {theme.fpx(9)}px;')
+    hl.addWidget(byline)
+    card_layout.addWidget(header)
+    return card, card_layout
+
+
 class SettingsWindow(QWidget):
     def __init__(self, controller: ThrottleController, icon=None) -> None:
         super().__init__()
@@ -25,48 +73,7 @@ class SettingsWindow(QWidget):
         outer = QVBoxLayout(self)
         outer.setContentsMargins(8, 8, 8, 8)
 
-        card = _CardFrame()
-        card.setStyleSheet(f"""
-            _CardFrame {{
-                background: {theme.BG_PANEL};
-                border: 1px solid {theme.BORDER_CYAN};
-                border-radius: {theme.RADIUS}px;
-            }}
-        """)
-        card_layout = QVBoxLayout(card)
-        card_layout.setContentsMargins(0, 0, 0, 0)
-        card_layout.setSpacing(0)
-
-        header = QFrame()
-        header.setObjectName("hdr")
-        header.setFixedHeight(theme.CARD_HEADER_HEIGHT)
-        header.setStyleSheet(f"""
-            QFrame#hdr {{
-                background: {theme.BG_PANEL_HEADER};
-                border-top-left-radius: {theme.RADIUS}px;
-                border-top-right-radius: {theme.RADIUS}px;
-                border-bottom: 1px solid {theme.BORDER_FLAT};
-            }}
-        """)
-        hl = QHBoxLayout(header)
-        hl.setContentsMargins(12, 0, 10, 0)
-        dot = QLabel("●")
-        dot.setStyleSheet(f"color: {theme.ACCENT_CYAN}; font-size: {theme.fpx(9)}px;")
-        hl.addWidget(dot)
-        title = QLabel(controller.display_name)
-        title.setTextInteractionFlags(Qt.NoTextInteraction)
-        title.setStyleSheet(
-            f'font-family: "{theme.FONT_DISPLAY}"; font-weight: 700; font-size: {theme.fpx(11)}px;'
-        )
-        hl.addWidget(title)
-        hl.addStretch()
-        byline = QLabel(
-            f'<span style="color:{theme.TEXT_MUTED};">by </span>'
-            f'<span style="color:{theme.ACCENT_CYAN};">TheRealKestryl</span>'
-        )
-        byline.setStyleSheet(f'font-family: "{theme.FONT_MONO}"; font-size: {theme.fpx(9)}px;')
-        hl.addWidget(byline)
-        card_layout.addWidget(header)
+        card, card_layout = build_card(controller.display_name)
 
         body = QWidget()
         body.setStyleSheet("background: transparent;")
