@@ -158,37 +158,78 @@ def play_home_tick(count: int):
         QTimer.singleShot(delay, lambda: _chirp_sound.play() if _chirp_sound else None)
 
 
-def _reinit_joysticks():
-    pygame.joystick.quit()
-    pygame.joystick.init()
-    # Re-init posts a JOYDEVICEADDED for every device already present; drop
-    # them so joystick_plugged_in() only reports devices plugged in later.
-    pygame.event.pump()
-    pygame.event.clear(pygame.JOYDEVICEADDED)
+class _Joysticks:
+    """Single owner of every pygame Joystick object.
+
+    Crash fix (2026-10-30): the old code called pygame.joystick.quit()/init()
+    on every rescan, Refresh, Apply and Detect while the controller's 60 Hz
+    _poll still held (and read) a Joystick from before the re-init. SDL frees
+    the device on quit; a later get_axis on the stale handle is a
+    use-after-free -> 0xc0000005 in python314.dll. Now the subsystem is
+    initialised exactly once and never quit while the app runs; devices are
+    opened once and tracked by SDL instance id via JOYDEVICEADDED/REMOVED.
+    pump() is the only place the event queue is pumped/drained."""
+
+    def __init__(self):
+        self.devices = {}  # instance_id -> Joystick
+        self.changed = False
+
+    def ensure(self):
+        if not pygame.joystick.get_init():
+            pygame.joystick.init()
+            for i in range(pygame.joystick.get_count()):
+                self._open(i)
+            # init posts ADDED for devices already present; we just opened them.
+            pygame.event.pump()
+            pygame.event.clear(pygame.JOYDEVICEADDED)
+
+    def _open(self, index):
+        try:
+            j = pygame.joystick.Joystick(index)
+            self.devices[j.get_instance_id()] = j
+            self.changed = True
+        except Exception:
+            pass
+
+    def pump(self):
+        """Pump SDL once and apply hot-plug events. Returns True if the
+        device set changed since the last call."""
+        self.ensure()
+        pygame.event.pump()
+        for e in pygame.event.get((pygame.JOYDEVICEADDED, pygame.JOYDEVICEREMOVED)):
+            if e.type == pygame.JOYDEVICEADDED:
+                self._open(e.device_index)
+            else:
+                self.devices.pop(getattr(e, "instance_id", None), None)
+                self.changed = True
+        changed, self.changed = self.changed, False
+        return changed
+
+    def listing(self):
+        self.ensure()
+        out = []
+        for iid, j in sorted(self.devices.items()):
+            try:
+                guid = j.get_guid()
+            except AttributeError:  # pragma: no cover
+                guid = None
+            out.append({"index": iid, "name": j.get_name(), "guid": guid,
+                        "numaxes": j.get_numaxes(), "joy": j})
+        return out
+
+
+JOYSTICKS = _Joysticks()
 
 
 def joystick_plugged_in() -> bool:
-    """True if SDL reported a newly connected device since the last check.
-    Cheap (no subsystem restart). Drains the event queue, which nothing else
-    reads (the axis poll only pumps it)."""
     try:
-        pygame.event.pump()
-        return any(e.type == pygame.JOYDEVICEADDED for e in pygame.event.get())
+        return JOYSTICKS.pump()
     except Exception:
         return False
 
 
 def list_joysticks():
-    _reinit_joysticks()
-    devices = []
-    for i in range(pygame.joystick.get_count()):
-        j = pygame.joystick.Joystick(i)
-        try:
-            guid = j.get_guid()
-        except AttributeError:  # pragma: no cover - older pygame without GUIDs
-            guid = None
-        devices.append({"index": i, "name": j.get_name(), "guid": guid, "numaxes": j.get_numaxes()})
-    return devices
+    return [{k: v for k, v in d.items() if k != "joy"} for d in JOYSTICKS.listing()]
 
 
 def _default_bar_position() -> tuple[int, int]:
@@ -206,26 +247,15 @@ def _default_bar_position() -> tuple[int, int]:
 
 
 def find_joystick(device_guid, reinit=True):
-    """Finds the configured device by saved GUID, or falls back to the
-    first connected device with at least one axis — deliberately no
-    hardcoded device-name hint (unlike ThrottleWatch's original
-    DEVICE_NAME_HINT): mobiOverlay is meant to work on someone else's rig,
-    not just this machine's VKB throttle. `reinit=False` reuses the devices
-    pygame already enumerated (only safe right after list_joysticks())."""
-    if reinit:
-        _reinit_joysticks()
-    fallback = None
-    for i in range(pygame.joystick.get_count()):
-        j = pygame.joystick.Joystick(i)
+    """Configured device by saved GUID, else first device with an axis.
+    `reinit` is ignored (kept for API compatibility) — see _Joysticks."""
+    for d in JOYSTICKS.listing():
         if device_guid:
-            try:
-                if j.get_guid() == device_guid:
-                    return j
-            except AttributeError:  # pragma: no cover - older pygame without GUIDs
-                continue
-        elif fallback is None and j.get_numaxes() > 0:
-            fallback = j
-    return None if device_guid else fallback
+            if d["guid"] == device_guid:
+                return d["joy"]
+        elif d["numaxes"] > 0:
+            return d["joy"]
+    return None
 
 
 class _ThrottleBar(QWidget):
@@ -946,14 +976,10 @@ class ThrottleController(QObject):
             self.request_refresh()
 
     def _try_connect(self):
-        since_scan = time.monotonic() - self._joysticks_scanned_at
-        plugged_in = joystick_plugged_in()
-        if since_scan < JOYSTICK_FRESH_SECONDS and not self._rescan_requested:
-            self._device = find_joystick(self.settings.get("device_guid"), reinit=False)
-        elif self._rescan_requested or plugged_in or since_scan >= JOYSTICK_RESCAN_SECONDS:
-            self._rescan_requested = False
-            self._device = find_joystick(self.settings.get("device_guid"))
-            self._joysticks_scanned_at = time.monotonic()
+        # Cheap: device set is maintained by hot-plug events, no re-init.
+        self._rescan_requested = False
+        self._device = find_joystick(self.settings.get("device_guid"))
+        self._joysticks_scanned_at = time.monotonic()
         if self._device is not None:
             self.settings["device_name"] = self._device.get_name()
             self._save()
@@ -961,10 +987,17 @@ class ThrottleController(QObject):
 
     # -- polling / drawing ------------------------------------------------
     def _poll(self):
-        if self._device is None:
+        try:
+            if JOYSTICKS.pump() and self._device is not None \
+                    and self._device not in JOYSTICKS.devices.values():
+                self._device = None  # unplugged: never touch its handle again
+                self._rescan_requested = True
+                self._set_status(RECONNECT_STATUS_UNAVAILABLE)
+        except Exception:
+            return
+        if self._device is None or self._detector is not None:
             return
         try:
-            pygame.event.pump()
             raw = self._device.get_axis(self.settings["axis_index"])
         except Exception:
             # Force the next refresh()'s _try_connect to rescan instead of
@@ -1209,7 +1242,7 @@ class ThrottleController(QObject):
     def start_detect(self):
         if self._detector is not None:
             return
-        self._set_status("Move your throttle through its range…")
+        self._set_status("Move only your throttle through its range, then leave it away from where it started…")
         if getattr(self, "detect_btn", None) is not None:
             self.detect_btn.setEnabled(False)
         self._detector = AxisDetector(self._on_detect_done)
@@ -1262,20 +1295,35 @@ def detent_crossed(prev: float, cur: float, pos: float) -> bool:
     return lo < pos <= hi if cur > prev else lo <= pos < hi
 
 
-def pick_axis(ranges: dict, min_travel: float = DETECT_MIN_TRAVEL):
-    """ranges: {(device_key, axis_index): (min_seen, max_seen)}. Returns the
-    key with the largest sweep, or None if nothing moved enough."""
-    best, best_travel = None, min_travel
-    for key, (lo, hi) in ranges.items():
-        travel = hi - lo
-        if travel > best_travel:
-            best, best_travel = key, travel
-    return best
+DETECT_CENTER_BAND = 0.15  # |final - start| below this = sprang back
+
+
+def pick_axis(ranges: dict, min_travel: float = DETECT_MIN_TRAVEL, ends: dict = None):
+    """ranges: {key: (min_seen, max_seen)}; ends (optional): {key: (start, last)}.
+    Prefers throttle-like axes: moved >= min_travel AND ended away from where
+    it started (a throttle stays put; a sprung stick axis returns to its start).
+    Falls back to the largest sweep only if no axis stayed put."""
+    def best_of(keys):
+        best, travel = None, min_travel
+        for k in keys:
+            lo, hi = ranges[k]
+            if hi - lo > travel:
+                best, travel = k, hi - lo
+        return best
+    if ends:
+        stayed = [k for k in ranges if k in ends
+                  and abs(ends[k][1] - ends[k][0]) >= DETECT_CENTER_BAND]
+        k = best_of(stayed)
+        if k is not None:
+            return k
+    return best_of(ranges)
 
 
 class AxisDetector(QObject):
-    """Samples every axis of every connected joystick for DETECT_SECONDS and
-    reports (guid, name, axis) of the one that moved most, or None."""
+    """Samples every axis for DETECT_SECONDS; reports (guid, name, axis) of
+    the most throttle-like axis (see pick_axis), or None. Uses the shared
+    Joystick objects; never re-inits pygame and never pumps events itself
+    (the controller's poll timer pumps; it skips axis reads during detect)."""
 
     def __init__(self, on_done):
         super().__init__()
@@ -1283,44 +1331,48 @@ class AxisDetector(QObject):
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._sample)
         self._ranges = {}
+        self._ends = {}
         self._devices = {}
         self._started = 0.0
 
     def start(self):
         try:
-            _reinit_joysticks()
-            for i in range(pygame.joystick.get_count()):
-                j = pygame.joystick.Joystick(i)
-                self._devices[i] = j
+            self._devices = {d["index"]: d["joy"] for d in JOYSTICKS.listing()}
         except Exception:
             self._devices = {}
         self._started = time.monotonic()
         self._timer.start(30)
 
     def _sample(self):
-        try:
-            pygame.event.pump()
-            for i, j in self._devices.items():
+        live = set(JOYSTICKS.devices)
+        for i, j in list(self._devices.items()):
+            if i not in live:  # unplugged mid-detect: forget it
+                self._devices.pop(i, None)
+                continue
+            try:
                 for a in range(j.get_numaxes()):
                     v = j.get_axis(a)
                     lo, hi = self._ranges.get((i, a), (v, v))
                     self._ranges[(i, a)] = (min(lo, v), max(hi, v))
-        except Exception:
-            pass
+                    start = self._ends.get((i, a), (v, v))[0]
+                    self._ends[(i, a)] = (start, v)
+            except Exception:
+                pass
         if time.monotonic() - self._started >= DETECT_SECONDS:
             self._finish()
 
     def _finish(self):
         self._timer.stop()
-        key = pick_axis(self._ranges)
+        key = pick_axis(self._ranges, ends=self._ends)
         result = None
-        if key is not None:
+        if key is not None and key[0] in self._devices:
             j = self._devices[key[0]]
             try:
                 guid = j.get_guid()
             except AttributeError:
                 guid = None
             result = (guid, j.get_name(), key[1])
+        self._devices = {}
         self._on_done(result)
 
     def cancel(self):
