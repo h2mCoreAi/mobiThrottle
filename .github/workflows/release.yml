@@ -1,30 +1,35 @@
 name: Build and release Windows app
 
-# Builds the mobiThrottle onedir folder with PyInstaller from mobithrottle.spec
-# (the same spec anyone can use locally — see BUILD.md) and publishes it as a
-# GitHub Release zip whenever a version tag (v*.*.*) is pushed. Mirrors
-# mobiOverlay's release workflow, minus the OCR/torch steps.
+# Builds mobiThrottle from source on a GitHub-hosted runner with PyInstaller
+# (mobithrottle.spec, the same spec anyone can use locally — see BUILD.md),
+# signs SLSA build-provenance attestations for the exe and the zip, and
+# publishes a GitHub Release whenever a version tag (v*) is pushed.
+# Downloaders verify with:  gh attestation verify <zip> --repo h2mCoreAi/mobiThrottle
 
 on:
   push:
     tags:
-      - "v*.*.*"
+      - "v*"
   workflow_dispatch: {}
 
 permissions:
-  contents: write
+  contents: write       # create the release
+  id-token: write       # OIDC token for Sigstore signing
+  attestations: write   # store the attestation
 
 jobs:
   build:
     runs-on: windows-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.13"
 
       - name: Install dependencies
         run: |
@@ -52,13 +57,33 @@ jobs:
           Copy-Item "LICENSE" "$releaseDir/LICENSE.txt" -ErrorAction SilentlyContinue
 
       - name: Zip and checksum
+        id: pkg
         shell: pwsh
         run: |
           $version = "${{ github.ref_name }}"
+          if (-not $version.StartsWith("v")) { $version = "v0.0.0-dev" }
           $zipName = "mobiThrottle-$version-windows.zip"
           Compress-Archive -Path "release/mobiThrottle" -DestinationPath $zipName
-          $hash = Get-FileHash $zipName -Algorithm SHA256
-          "$($hash.Hash)  $zipName" | Out-File "$zipName.sha256" -Encoding ascii
+          $hash = (Get-FileHash $zipName -Algorithm SHA256).Hash.ToLower()
+          "$hash  $zipName" | Out-File "$zipName.sha256" -Encoding ascii -NoNewline
+          "zip=$zipName" >> $env:GITHUB_OUTPUT
+          "sha256=$hash" >> $env:GITHUB_OUTPUT
+
+      - name: Attest build provenance (exe + zip)
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            release/mobiThrottle/mobiThrottle.exe
+            ${{ steps.pkg.outputs.zip }}
+
+      - name: Upload artifact (manual runs)
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobiThrottle-windows
+          path: |
+            mobiThrottle-*-windows.zip
+            mobiThrottle-*-windows.zip.sha256
 
       - name: Publish release
         if: startsWith(github.ref, 'refs/tags/')
@@ -69,9 +94,25 @@ jobs:
             mobiThrottle-*-windows.zip.sha256
           body: |
             **mobiThrottle** by TheRealKestryl — onedir package. Extract the
-            zip once, then run `mobiThrottle/mobiThrottle.exe`. Keep the whole
+            zip, then run `mobiThrottle/mobiThrottle.exe`. Keep the whole
             folder together (`_internal/` is required).
 
-            Automated build from source at this tag by
-            `.github/workflows/release.yml`. Verify the download's SHA256
-            against the attached `.sha256` file. Build it yourself: see `BUILD.md`.
+            ### Built by GitHub, verifiable
+            This zip was compiled from the source at this tag on a GitHub-hosted
+            runner by [`.github/workflows/release.yml`](https://github.com/${{ github.repository }}/blob/${{ github.ref_name }}/.github/workflows/release.yml)
+            ([run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})).
+            No human touched the binary. GitHub signed a build-provenance
+            attestation for both the zip and `mobiThrottle.exe`.
+
+            Verify (needs the [GitHub CLI](https://cli.github.com/)):
+            ```
+            gh attestation verify ${{ steps.pkg.outputs.zip }} --repo ${{ github.repository }}
+            gh attestation verify mobiThrottle/mobiThrottle.exe --repo ${{ github.repository }}
+            ```
+            Check the SHA256 (PowerShell):
+            ```
+            Get-FileHash ${{ steps.pkg.outputs.zip }} -Algorithm SHA256
+            ```
+            Expected: `${{ steps.pkg.outputs.sha256 }}` (also in the attached `.sha256`).
+
+            Build it yourself: see `BUILD.md`. Report security issues: see `SECURITY.md`.
