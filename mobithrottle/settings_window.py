@@ -15,7 +15,7 @@ class _CardFrame(QFrame):
 
 
 class SettingsWindow(QWidget):
-    def __init__(self, controller: ThrottleController, icon=None):
+    def __init__(self, controller: ThrottleController, icon=None) -> None:
         super().__init__()
         self.controller = controller
         self.setWindowTitle("mobiThrottle — Settings")
@@ -88,20 +88,20 @@ class SettingsWindow(QWidget):
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.resize(420, 760)
 
-    def show_and_raise(self):
+    def show_and_raise(self) -> None:
         self.show()
         self.setWindowState(self.windowState() & ~Qt.WindowMinimized)
         self.raise_()
         self.activateWindow()
 
-    def toggle_visible(self):
+    def toggle_visible(self) -> None:
         """Single left-click on the tray icon."""
         if self.isVisible() and not self.isMinimized():
             self.hide()
         else:
             self.show_and_raise()
 
-    def changeEvent(self, event):
+    def changeEvent(self, event) -> None:
         # Minimize = hide to tray: a hidden top-level window has no taskbar
         # button, so the button exists only while settings are open. Deferred
         # because hiding inside the state-change handler confuses Windows.
@@ -116,7 +116,7 @@ class SettingsWindow(QWidget):
 
     allow_close = False  # set by app.request_quit()
 
-    def closeEvent(self, event):
+    def closeEvent(self, event) -> None:
         # Close = hide to tray; Quit lives in the tray menu.
         if self.allow_close:
             event.accept()

@@ -1,6 +1,7 @@
 """Pure detent/auto-detect helpers and the AxisDetector (unit-tested)."""
 
 import time
+from collections.abc import Callable
 
 from PySide6.QtCore import QObject, QTimer
 
@@ -22,7 +23,7 @@ def detent_crossed(prev: float, cur: float, pos: float) -> bool:
 DETECT_CENTER_BAND = 0.15  # |final - start| below this = sprang back
 
 
-def pick_axis(ranges: dict, min_travel: float = DETECT_MIN_TRAVEL, ends: dict = None):
+def pick_axis(ranges: dict, min_travel: float = DETECT_MIN_TRAVEL, ends: dict | None = None) -> object | None:
     """ranges: {key: (min_seen, max_seen)}; ends (optional): {key: (start, last)}.
     Prefers throttle-like axes: moved >= min_travel AND ended away from where
     it started (a throttle stays put; a sprung stick axis returns to its start).
@@ -50,7 +51,7 @@ class AxisDetector(QObject):
     Joystick objects; never re-inits pygame and never pumps events itself
     (the controller's poll timer pumps; it skips axis reads during detect)."""
 
-    def __init__(self, on_done):
+    def __init__(self, on_done: Callable[[object | None], None]) -> None:
         super().__init__()
         self._on_done = on_done
         self._timer = QTimer(self)
@@ -60,7 +61,7 @@ class AxisDetector(QObject):
         self._devices = {}
         self._started = 0.0
 
-    def start(self):
+    def start(self) -> None:
         try:
             self._devices = {d["index"]: d["joy"] for d in JOYSTICKS.listing()}
         except Exception:
@@ -100,5 +101,5 @@ class AxisDetector(QObject):
         self._devices = {}
         self._on_done(result)
 
-    def cancel(self):
+    def cancel(self) -> None:
         self._timer.stop()

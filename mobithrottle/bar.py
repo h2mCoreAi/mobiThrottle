@@ -47,24 +47,24 @@ PANEL_RADIUS_MAX = 40
 KNOB_HIGHLIGHT = "#e4e9f5"
 
 
-def panel_radius_for(w, h):
+def panel_radius_for(w: int, h: int) -> int:
     return min(PANEL_RADIUS_MAX, max(PANEL_RADIUS_MIN, round(min(w, h) * PANEL_RADIUS_RATIO)))
 
 
-def dim_color(hex_color, factor=0.55):
+def dim_color(hex_color: str, factor: float = 0.55) -> str:
     hex_color = hex_color.lstrip("#")
     r, g, b = (int(hex_color[i : i + 2], 16) for i in (0, 2, 4))
     return f"#{int(r * factor):02x}{int(g * factor):02x}{int(b * factor):02x}"
 
 
-def lerp_color(hex_a, hex_b, t):
+def lerp_color(hex_a: str, hex_b: str, t: float) -> str:
     a = tuple(int(hex_a.lstrip("#")[i : i + 2], 16) for i in (0, 2, 4))
     b = tuple(int(hex_b.lstrip("#")[i : i + 2], 16) for i in (0, 2, 4))
     r, g, bl = (round(a[i] + (b[i] - a[i]) * t) for i in range(3))
     return f"#{r:02x}{g:02x}{bl:02x}"
 
 
-def value_to_color(abs_val, line_color):
+def value_to_color(abs_val: float, line_color: str) -> str:
     """The bar's own accent color (nominal) at center, gradually shifting to
     the alert amber at full deflection — mirrors MobiGlas's own
     cyan=nominal/amber=alert convention."""
@@ -99,7 +99,7 @@ class _ThrottleBar(QWidget):
     Win32 SetWindowRgn panel-shaping hack.
     """
 
-    def __init__(self, module: "ThrottleController"):
+    def __init__(self, module: "ThrottleController") -> None:
         super().__init__()
         self._module = module
         self.value = 0.0

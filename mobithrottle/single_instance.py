@@ -38,11 +38,11 @@ class SingleInstance:
             main()
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._lock_path = app_root() / LOCK_FILENAME
         self._lock_file = None
 
-    def __enter__(self):
+    def __enter__(self) -> "SingleInstance":
         self._lock_path.parent.mkdir(parents=True, exist_ok=True)
         try:
             self._lock_file = open(self._lock_path, "w")
@@ -80,7 +80,7 @@ class SingleInstance:
         self._lock_file.flush()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         if self._lock_file is not None:
             if sys.platform == "win32":
                 import msvcrt

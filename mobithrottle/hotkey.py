@@ -86,13 +86,13 @@ class HotkeyState:
     sidesteps that.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.combo: tuple[str, ...] = ()
         self.callback = None
         self.pressed: set[str] = set()
         self.held = False
 
-    def configure(self, hotkey: str, callback):
+    def configure(self, hotkey: str, callback) -> None:
         if not hotkey:
             return
         self.combo = tuple(p.strip().lower() for p in hotkey.split("+") if p.strip())
@@ -100,13 +100,13 @@ class HotkeyState:
         self.pressed.clear()
         self.held = False
 
-    def clear(self):
+    def clear(self) -> None:
         self.combo = ()
         self.callback = None
         self.pressed.clear()
         self.held = False
 
-    def handle_event(self, name: str, event_type: str):
+    def handle_event(self, name: str, event_type: str) -> None:
         combo = self.combo
         if not combo:
             return
@@ -129,7 +129,7 @@ class HotkeyState:
             if name == trigger_key or name in modifiers:
                 self.held = False
 
-    def reconcile(self):
+    def reconcile(self) -> None:
         """Watchdog: clears stuck state if the OS says the relevant keys
         aren't actually held anymore, self-healing from a key-up event that
         never reached the hook (see class docstring)."""
@@ -167,7 +167,7 @@ class GlobalHotkey(QObject):
     # is what makes it safe for the slot to touch Qt widgets at all.
     triggered = Signal()
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self._state = HotkeyState()
         self._callback = None
@@ -234,11 +234,11 @@ class GlobalHotkey(QObject):
         self._state.configure(combo, self.triggered.emit)
         return True
 
-    def clear(self):
+    def clear(self) -> None:
         self._state.clear()
         self._callback = None
 
-    def shutdown(self):
+    def shutdown(self) -> None:
         """Fully releases the OS-level global hook and its watchdog timer —
         for process exit only. `clear()` above is for the user clearing/
         reconfiguring the hotkey while the app keeps running (it just

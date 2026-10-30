@@ -59,7 +59,7 @@ def _init_chirp_sound():
         return False
 
 
-def play_home_tick(count: int):
+def play_home_tick(count: int) -> None:
     """Plays the home-chirp sound `count` times with brief gaps between.
     Non-blocking: schedules playback via pygame.mixer channels, which mix
     and play asynchronously. Falls back gracefully (silent) if mixer fails."""
@@ -87,7 +87,7 @@ class _Joysticks:
     opened once and tracked by SDL instance id via JOYDEVICEADDED/REMOVED.
     pump() is the only place the event queue is pumped/drained."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.devices = {}  # instance_id -> Joystick
         self.changed = False
 
@@ -139,11 +139,11 @@ class _Joysticks:
 JOYSTICKS = _Joysticks()
 
 
-def list_joysticks():
+def list_joysticks() -> list[dict]:
     return [{k: v for k, v in d.items() if k != "joy"} for d in JOYSTICKS.listing()]
 
 
-def find_joystick(device_guid, reinit=True):
+def find_joystick(device_guid: str | None, reinit: bool = True) -> "pygame.joystick.JoystickType | None":
     """Configured device by saved GUID, else first device with an axis.
     `reinit` is ignored (kept for API compatibility) — see _Joysticks."""
     for d in JOYSTICKS.listing():

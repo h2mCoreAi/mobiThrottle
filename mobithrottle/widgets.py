@@ -80,7 +80,7 @@ class _Stepper(QWidget):
 
     valueChanged = Signal(float)
 
-    def __init__(self, minimum: float, maximum: float, step: float, value: float, decimals: int = 0):
+    def __init__(self, minimum: float, maximum: float, step: float, value: float, decimals: int = 0) -> None:
         super().__init__()
         self._min, self._max, self._step, self._decimals = minimum, maximum, step, decimals
         self._value = value
@@ -136,7 +136,7 @@ class _HotkeyField(QLineEdit):
     GlobalHotkey.capture_combo(), same pattern as main_window.py's
     _HotkeyField for the app-wide Stow/Deploy hotkey."""
 
-    def __init__(self, hotkey: GlobalHotkey, initial_display: str, on_applied):
+    def __init__(self, hotkey: GlobalHotkey, initial_display: str, on_applied) -> None:
         super().__init__()
         self._hotkey = hotkey
         self._on_applied = on_applied

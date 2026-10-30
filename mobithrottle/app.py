@@ -30,7 +30,7 @@ _instance_lock = None
 _controller = None
 
 
-def load_fonts():
+def load_fonts() -> None:
     for font_file in (assets_dir() / "fonts").glob("*.ttf"):
         if QFontDatabase.addApplicationFont(str(font_file)) == -1:
             logger.warning("Failed to load bundled font: %s", font_file.name)
@@ -88,7 +88,7 @@ def _install_excepthook():
     sys.excepthook = _hook
 
 
-def request_quit(app, window):
+def request_quit(app, window) -> None:
     """Quit for real. Qt 6's QApplication.quit() first asks every visible
     window to close and is cancelled if one refuses — and SettingsWindow
     refuses (close = hide to tray). So mark it closable, then exit."""
@@ -127,7 +127,7 @@ def _build_tray(app, controller, window, icon):
     return tray
 
 
-def main(argv=None):
+def main(argv: list[str] | None = None) -> int:
     global _instance_lock, _controller
     logging.basicConfig(level=logging.INFO, format="%(name)s: %(message)s")
     _install_crash_log()

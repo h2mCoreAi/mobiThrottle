@@ -91,7 +91,7 @@ class Splash(QWidget):
     blocks for a full second on every launch (Qt 6.11, measured 1.03s vs
     0.02s for this) waiting for an expose event before returning."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(None, Qt.SplashScreen | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
         self.setAttribute(Qt.WA_TranslucentBackground)
         self._pixmap = _build_pixmap()
@@ -100,20 +100,20 @@ class Splash(QWidget):
         screen = self.screen().availableGeometry()
         self.move(screen.center() - self.rect().center())
 
-    def show_message(self, text: str):
+    def show_message(self, text: str) -> None:
         self._message = text
         # Force an immediate repaint — the caller is about to block the event
         # loop with a slow synchronous call (module import, API fetch), so
         # there won't be a natural repaint opportunity otherwise.
         self.repaint()
 
-    def finish(self, _window):
+    def finish(self, _window) -> None:
         self.close()
 
-    def mousePressEvent(self, event):
+    def mousePressEvent(self, event) -> None:
         self.hide()
 
-    def paintEvent(self, event):
+    def paintEvent(self, event) -> None:
         painter = QPainter(self)
         painter.drawPixmap(0, 0, self._pixmap)
         painter.setPen(QColor(theme.TEXT_MUTED))
@@ -127,5 +127,5 @@ def show_splash() -> Splash:
     return splash
 
 
-def set_status(splash: Splash, text: str):
+def set_status(splash: Splash, text: str) -> None:
     splash.show_message(text)

@@ -133,7 +133,7 @@ class ThrottleController(QObject):
         "detent_2_chirp": False,
     }
 
-    def __init__(self, config):
+    def __init__(self, config) -> None:
         super().__init__()
         self.config = config
         self.settings = config.settings
@@ -191,7 +191,7 @@ class ThrottleController(QObject):
         self.config.save()
 
     # -- card ---------------------------------------------------------
-    def build_settings(self, layout, parent=None):
+    def build_settings(self, layout, parent=None) -> None:
         """Same controls/styling as the overlay module's create_card()."""
         self._settings_parent = parent
 
@@ -525,15 +525,15 @@ class ThrottleController(QObject):
                 play_home_tick(1)
         self._prev_value = value
 
-    def is_home_flashing(self):
+    def is_home_flashing(self) -> bool:
         return time.time() < self._flash_until
 
     # -- bar geometry / visibility -----------------------------------------
-    def on_bar_moved(self, x, y):
+    def on_bar_moved(self, x, y) -> None:
         self.settings["x"], self.settings["y"] = x, y
         self._save()
 
-    def on_bar_resized(self, w, h):
+    def on_bar_resized(self, w, h) -> None:
         self.settings["width"], self.settings["height"] = w, h
         self._save()
 
@@ -567,14 +567,14 @@ class ThrottleController(QObject):
         self._bar.set_click_through(enabled)
         self.click_through_changed.emit(enabled)
 
-    def toggle_click_through(self):
+    def toggle_click_through(self) -> None:
         new = not self.settings["click_through"]
         if self.status_label is not None:
             self.click_through_check.setChecked(new)  # fires the handler
         else:
             self._on_click_through_toggled(new)
 
-    def toggle_bar(self):
+    def toggle_bar(self) -> None:
         self._set_bar_visible(not self.settings["bar_visible"])
 
     # -- orientation / appearance -------------------------------------------
@@ -709,7 +709,7 @@ class ThrottleController(QObject):
         self._save()
 
     # -- module contract --------------------------------------------------
-    def refresh(self):
+    def refresh(self) -> None:
         """Reconnect check only — the bar's own 60Hz poll timer (see
         __init__) drives the actual axis reads, decoupled from the host's
         refresh cycle. Raising here (no device found) puts this card into
@@ -744,7 +744,7 @@ class ThrottleController(QObject):
         self._save()
 
     # -- auto-detect (v1) -------------------------------------------------
-    def start_detect(self):
+    def start_detect(self) -> None:
         if self._detector is not None:
             return
         self._set_status(
@@ -773,7 +773,7 @@ class ThrottleController(QObject):
         self._device = None
         self._reconnect_tick()
 
-    def shutdown(self):
+    def shutdown(self) -> None:
         """Releases the two OS-level global keyboard hooks this module
         owns — required before a Relaunch spawns a new process, same
         reasoning as host/main_window.py's own Stow/Deploy hotkey (see

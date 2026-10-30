@@ -26,7 +26,7 @@ def default_settings() -> dict:
 
 
 class Config:
-    def __init__(self, path: Path | None = None):
+    def __init__(self, path: Path | None = None) -> None:
         self.path = Path(path) if path else default_config_path()
         self.existed = self.path.exists()
         self.settings = self._load()
@@ -48,7 +48,7 @@ class Config:
         logger.warning("config.json was unreadable; starting with defaults")
         return {}
 
-    def save(self):
+    def save(self) -> None:
         """Atomic write (temp file + replace) so a crash never truncates it."""
         tmp = self.path.with_suffix(".json.tmp")
         try:
