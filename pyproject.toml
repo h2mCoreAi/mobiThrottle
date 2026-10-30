@@ -1,0 +1,27 @@
+[project]
+name = "mobithrottle"
+dynamic = ["version"]
+description = "Standalone throttle-axis overlay by TheRealKestryl"
+requires-python = ">=3.12"
+license = "MIT"
+
+# Tooling only; runtime/build deps live in requirements*.txt / *.lock.
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+extend-exclude = ["build", "dist", "release"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+ignore = [
+    "E501",   # long lines: formatter handles code, long strings/comments are fine
+    "SIM105", # contextlib.suppress: explicit try/except reads clearer around Win32/SDL calls
+]
+
+[tool.ruff.lint.per-file-ignores]
+"*.spec" = ["F821"]
+"tests/*" = ["E402"]
+
+[tool.ruff.format]
+quote-style = "preserve"
