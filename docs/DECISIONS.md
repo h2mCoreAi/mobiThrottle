@@ -74,3 +74,10 @@ Append-only. Newest at bottom. Short entries — rationale, not essays.
 - Removed dead code: unused theme helpers vendored from mobiOverlay (font-scale options, grid snap, row/action styles), write-only `_rescan_requested`/`_joysticks_scanned_at`, unused `joystick_plugged_in`, `_ThrottleBar.apply_geometry`, unused rescan constants.
 - Split the 1.4k-line throttle.py into bar.py / devices.py / widgets.py / detect.py. Code moved verbatim (line-multiset check: every original line present); throttle.py re-exports the moved names so `throttle.X` callers/tests still work.
 - Public functions type-hinted. No feature or UI changes.
+
+## 2026-10-30 — In-app Setup Guide replaces silent first-run auto-detect
+- Built into the app (not a companion exe): reuses the bundled Qt (a few KB), shares the live stick input and the same config, no second process fighting over the device.
+- First run (no config.json yet; `controller.first_run`) opens the guide instead of auto-starting Detect; reopenable from Settings → SETUP GUIDE. An existing config without a device does not reopen it every launch.
+- Apply-as-you-go: every control calls the same ThrottleController setters/handlers as the settings window and saves immediately, so the bar reacts live. **Cancel (or the window X) keeps changes already made** — nothing to revert, and the guide never leaves settings half-written. Settings-window widgets are re-synced on close (`sync_settings_widgets`).
+- Joysticks: the guide never calls pygame; device lists via `list_joysticks()`, detect via `controller.start_detect()` (AxisDetector on the shared `_Joysticks` owner) and the new `detect_finished` signal; the live preview reads `controller.current_value`. Test asserts `pygame.joystick.quit` is never called.
+- Refactors for reuse (no behavior change): `apply_device()`, `set_axis_reverse()`, `set_line_color()/set_bg_color()`, `current_value`, `build_card()`, `schedule_first_run()`.
