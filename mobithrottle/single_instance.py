@@ -15,7 +15,6 @@ that tries to acquire the same lock fails immediately and can show a dialog.
 """
 
 import sys
-from pathlib import Path
 
 from .paths import app_root
 
@@ -64,7 +63,7 @@ class SingleInstance:
                     "hook used for hotkeys can block game input if two copies "
                     "are competing.\n\n"
                     "Check your system tray or Task Manager."
-                )
+                ) from None
         else:
             import fcntl
 
@@ -75,7 +74,7 @@ class SingleInstance:
                 self._lock_file = None
                 raise SingleInstanceError(
                     "mobiThrottle is already running.\n\nOnly one instance can run at a time."
-                )
+                ) from None
 
         self._lock_file.write(str(sys.executable))
         self._lock_file.flush()

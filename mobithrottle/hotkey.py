@@ -1,8 +1,7 @@
 """Vendored from mobiOverlay host/hotkey.py (commit 55532f3), with Win32 /
 `keyboard` imports guarded so the module imports on non-Windows.
-"""
 
-"""System-wide (global) hotkey support via a low-level keyboard hook.
+System-wide (global) hotkey support via a low-level keyboard hook.
 
 Plain Qt shortcuts (QShortcut) only fire while the app itself has focus —
 useless for "toggle the overlay while I'm alt-tabbed into the game," which
@@ -24,11 +23,11 @@ suspenders safety net to ensure the hook is always released, and delays
 installing the hook until a hotkey is actually configured (lazy install)
 so a user running with no hotkey set never even has a hook installed.
 """
+
 import atexit
 import ctypes
-import threading
-
 import sys
+import threading
 
 from PySide6.QtCore import QObject, QTimer, Signal
 

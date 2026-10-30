@@ -12,7 +12,7 @@ look at instead of a frozen/absent window during that window, styled like
 the rest of the HUD (void background, cyan border, mobiOverlay wordmark).
 """
 
-from PySide6.QtCore import Qt, QRectF
+from PySide6.QtCore import QRectF, Qt
 from PySide6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPainterPath, QPen, QPixmap
 from PySide6.QtWidgets import QWidget
 

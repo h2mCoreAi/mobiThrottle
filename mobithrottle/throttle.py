@@ -9,16 +9,15 @@ Passive HID reads only — never touches any game process.
 """
 
 import ctypes
-import sys
 import io
 import math
 import struct
+import sys
 import time
 import wave
 
 import pygame  # provided by the pygame-ce package (see requirements.txt)
-
-from PySide6.QtCore import QObject, Qt, QTimer, QRectF, QPointF, Signal
+from PySide6.QtCore import QObject, QPointF, QRectF, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QGuiApplication, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -31,7 +30,6 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QPushButton,
     QSlider,
-    QVBoxLayout,
     QWidget,
 )
 
@@ -86,14 +84,14 @@ def panel_radius_for(w, h):
 def dim_color(hex_color, factor=0.55):
     hex_color = hex_color.lstrip("#")
     r, g, b = (int(hex_color[i : i + 2], 16) for i in (0, 2, 4))
-    return "#%02x%02x%02x" % (int(r * factor), int(g * factor), int(b * factor))
+    return f"#{int(r * factor):02x}{int(g * factor):02x}{int(b * factor):02x}"
 
 
 def lerp_color(hex_a, hex_b, t):
     a = tuple(int(hex_a.lstrip("#")[i : i + 2], 16) for i in (0, 2, 4))
     b = tuple(int(hex_b.lstrip("#")[i : i + 2], 16) for i in (0, 2, 4))
     r, g, bl = (round(a[i] + (b[i] - a[i]) * t) for i in range(3))
-    return "#%02x%02x%02x" % (r, g, bl)
+    return f"#{r:02x}{g:02x}{bl:02x}"
 
 
 def value_to_color(abs_val, line_color):

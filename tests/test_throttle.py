@@ -17,7 +17,7 @@ os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from PySide6.QtWidgets import QApplication, QVBoxLayout, QWidget  # noqa: E402
+from PySide6.QtWidgets import QApplication  # noqa: E402
 
 from mobithrottle import throttle  # noqa: E402
 from mobithrottle.config import Config, default_settings  # noqa: E402

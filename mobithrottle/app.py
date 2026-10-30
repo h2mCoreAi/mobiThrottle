@@ -57,9 +57,10 @@ def _install_crash_log():
     global _crash_file
     try:
         import faulthandler
+
         from .paths import app_root
 
-        _crash_file = open(app_root() / "mobiThrottle-crash.log", "a", buffering=1, encoding="utf-8")
+        _crash_file = open(app_root() / "mobiThrottle-crash.log", "a", buffering=1, encoding="utf-8")  # noqa: SIM115 -- must stay open for faulthandler
         faulthandler.enable(_crash_file, all_threads=True)
     except Exception:
         _crash_file = None
@@ -151,8 +152,8 @@ def main(argv=None):
 
     set_status(splash, "Loading settings...")
     config = Config()
-    from .throttle import ThrottleController
     from .settings_window import SettingsWindow
+    from .throttle import ThrottleController
 
     set_status(splash, "Starting mobiThrottle...")
     _controller = ThrottleController(config)

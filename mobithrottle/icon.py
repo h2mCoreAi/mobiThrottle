@@ -39,6 +39,7 @@ def app_icon() -> QIcon:
 
 if __name__ == "__main__":
     import sys
+
     from PySide6.QtGui import QGuiApplication
 
     app = QGuiApplication(sys.argv)
