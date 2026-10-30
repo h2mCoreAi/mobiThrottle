@@ -59,13 +59,6 @@ HOME_FLASH_DURATION = 0.18  # seconds
 HOME_TICK_FREQ = 1400
 HOME_TICK_MS = 45
 RECONNECT_STATUS_UNAVAILABLE = "No device connected"
-# Restarting pygame's joystick subsystem blocks the GUI thread ~0.25s. With no
-# device connected, the 5s reconnect check only does it when SDL reports a
-# device was plugged in, plus this safety-net rescan in case an event is missed.
-JOYSTICK_RESCAN_SECONDS = 60
-# A device list this recent is reused as-is (create_card lists devices just
-# before the first refresh connects).
-JOYSTICK_FRESH_SECONDS = 2
 # Corner radius for the panel background, scaled to the bar's own size
 # rather than a fixed px value — this bar is user-resizable over a wide
 # range (a thin sliver up past a normal card's width), and a fixed radius
@@ -228,13 +221,6 @@ class _Joysticks:
 
 
 JOYSTICKS = _Joysticks()
-
-
-def joystick_plugged_in() -> bool:
-    try:
-        return JOYSTICKS.pump()
-    except Exception:
-        return False
 
 
 def list_joysticks():
@@ -460,10 +446,6 @@ class _ThrottleBar(QWidget):
             return
         self.value = value
         self.update()
-
-    def apply_geometry(self):
-        s = self._module.settings
-        self.setGeometry(s["x"], s["y"], s["width"], s["height"])
 
     def apply_orientation_swap(self):
         s = self._module.settings
@@ -705,8 +687,6 @@ class ThrottleController(QObject):
             pygame.init()
 
         self._device = None
-        self._joysticks_scanned_at = float("-inf")
-        self._rescan_requested = False
         self._prev_in_home = True
         self._last_chirp_time = 0.0
         self._flash_until = 0.0
@@ -986,7 +966,6 @@ class ThrottleController(QObject):
     # -- device -----------------------------------------------------
     def _refresh_device_list(self):
         self._device_list = list_joysticks()
-        self._joysticks_scanned_at = time.monotonic()
         self.device_combo.blockSignals(True)
         self.device_combo.clear()
         self.device_combo.addItem("Auto (first detected)")
@@ -1017,15 +996,12 @@ class ThrottleController(QObject):
         # Force an immediate reconnect against the new selection instead of
         # waiting for the next refresh_interval_seconds tick.
         self._device = None
-        self._rescan_requested = True
         if self.request_refresh is not None:
             self.request_refresh()
 
     def _try_connect(self):
         # Cheap: device set is maintained by hot-plug events, no re-init.
-        self._rescan_requested = False
         self._device = find_joystick(self.settings.get("device_guid"))
-        self._joysticks_scanned_at = time.monotonic()
         if self._device is not None:
             self.settings["device_name"] = self._device.get_name()
             self._save()
@@ -1040,7 +1016,6 @@ class ThrottleController(QObject):
                 and self._device not in JOYSTICKS.devices.values()
             ):
                 self._device = None  # unplugged: never touch its handle again
-                self._rescan_requested = True
                 self._set_status(RECONNECT_STATUS_UNAVAILABLE)
         except Exception:
             return
@@ -1053,7 +1028,6 @@ class ThrottleController(QObject):
             # sitting idle until JOYSTICK_RESCAN_SECONDS (stick still
             # plugged in after a transient HID read failure).
             self._device = None
-            self._rescan_requested = True
             self._set_status(RECONNECT_STATUS_UNAVAILABLE)
             return
         value = -raw if self.settings["axis_reverse"] else raw
@@ -1332,7 +1306,6 @@ class ThrottleController(QObject):
             self.axis_spin.setValue(axis, emit=False)
             self._refresh_device_list()
         self._device = None
-        self._rescan_requested = True
         self._reconnect_tick()
 
     def shutdown(self):
