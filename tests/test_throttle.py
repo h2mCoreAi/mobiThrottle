@@ -288,7 +288,66 @@ def t_axis_stats():
     check("reset", st.raw is None and st.rest_jitter is None)
 
 
+def t_disconnect_alert():
+    import pygame
+
+    class FakeJoy:
+        def get_name(self):
+            return "Fake Throttle"
+
+        def get_axis(self, _i):
+            return 0.0
+
+    quits, tones = [], []
+    orig = (
+        pygame.joystick.quit,
+        throttle.JOYSTICKS.pump,
+        throttle.play_disconnect_tone,
+        throttle.find_joystick,
+    )
+    pygame.joystick.quit = lambda: quits.append(1)
+    throttle.play_disconnect_tone = lambda: tones.append(1)
+    try:
+        c = Config(tmp / "dc.json")
+        ctl = throttle.ThrottleController(c)
+        ctl._poll_timer.stop()
+        ctl._reconnect_timer.stop()
+        check("disconnect alert default on", ctl.settings["disconnect_alert"] is True)
+        ctl._device = FakeJoy()  # not in JOYSTICKS.devices -> looks removed
+        throttle.JOYSTICKS.pump = lambda: True
+        ctl._poll()
+        check(
+            "removed: bar greyed + one tone", ctl._bar.disconnected and tones == [1] and ctl._device is None
+        )
+        ctl._bar.grab()
+        ctl._device = FakeJoy()
+        ctl._poll()
+        check("tone plays once per disconnect", tones == [1])
+        throttle.find_joystick = lambda _guid: FakeJoy()
+        ctl._try_connect()
+        check("reconnect restores look", not ctl._bar.disconnected)
+        ctl.set_disconnect_alert(False)
+        ctl._device = FakeJoy()
+        ctl._poll()
+        check("alert off: no grey, no tone", not ctl._bar.disconnected and tones == [1])
+        check("saved", Config(c.path).settings["disconnect_alert"] is False)
+        ctl.shutdown()
+    finally:
+        (
+            pygame.joystick.quit,
+            throttle.JOYSTICKS.pump,
+            throttle.play_disconnect_tone,
+            throttle.find_joystick,
+        ) = orig
+    check("disconnect path never re-inits joysticks", not quits)
+    from mobithrottle import devices
+
+    check("disconnect tone distinct", devices.DISCONNECT_TONE_FREQ != devices.HOME_TICK_FREQ)
+    devices.play_disconnect_tone()  # must not raise with dummy audio
+
+
 for n, f in [
+    ("disconnect_alert", t_disconnect_alert),
     ("axis_stats", t_axis_stats),
     ("indicator_color", t_indicator_color),
     ("single_instance", t_single_instance),

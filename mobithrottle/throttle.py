@@ -61,6 +61,7 @@ from .devices import (  # noqa: F401
     _generate_chirp_wav,
     find_joystick,
     list_joysticks,
+    play_disconnect_tone,
     play_home_tick,
 )
 from .hotkey import GlobalHotkey
@@ -136,6 +137,8 @@ class ThrottleController(QObject):
         "detent_2_chirp": False,
         # Indicator turns green above zero / red below (track unchanged).
         "centre_zero_colors": False,
+        # Grey the bar + one low tone when the selected device is unplugged.
+        "disconnect_alert": True,
     }
 
     def __init__(self, config) -> None:
@@ -248,6 +251,15 @@ class ThrottleController(QObject):
         axis_row.addWidget(self.axis_reverse_check)
         axis_row.addStretch()
         layout.addLayout(axis_row)
+
+        self.disconnect_alert_check = QCheckBox("Disconnect alert")
+        self.disconnect_alert_check.setStyleSheet(_CHECK_STYLE)
+        self.disconnect_alert_check.setToolTip(
+            "Grey the bar and play one low tone if the device is unplugged"
+        )
+        self.disconnect_alert_check.setChecked(self.settings["disconnect_alert"])
+        self.disconnect_alert_check.toggled.connect(self.set_disconnect_alert)
+        layout.addWidget(self.disconnect_alert_check)
 
         apply_device_btn = QPushButton("APPLY DEVICE")
         apply_device_btn.setStyleSheet(_TOGGLE_BTN_STYLE)
@@ -502,6 +514,7 @@ class ThrottleController(QObject):
         # Cheap: device set is maintained by hot-plug events, no re-init.
         self._device = find_joystick(self.settings.get("device_guid"))
         if self._device is not None:
+            self._bar.set_disconnected(False)
             self.settings["device_name"] = self._device.get_name()
             self._save()
             self._set_status(f"Connected: {self.settings['device_name']}")
@@ -516,6 +529,7 @@ class ThrottleController(QObject):
             ):
                 self._device = None  # unplugged: never touch its handle again
                 self._set_status(RECONNECT_STATUS_UNAVAILABLE)
+                self._on_device_removed()
         except Exception:
             return
         if self._device is None or self._detector is not None:
@@ -533,6 +547,21 @@ class ThrottleController(QObject):
         value = -raw if self.settings["axis_reverse"] else raw
         self._bar.set_value(value)
         self._check_home_chirp(value)
+
+    def _on_device_removed(self) -> None:
+        """Selected device's JOYDEVICEREMOVED (seen via the shared _Joysticks
+        owner's pump in _poll). Grey the bar and play one tone; _try_connect
+        restores the look when it comes back. Never re-inits joysticks."""
+        if not self.settings["disconnect_alert"] or self._bar.disconnected:
+            return
+        self._bar.set_disconnected(True)
+        play_disconnect_tone()
+
+    def set_disconnect_alert(self, enabled: bool) -> None:
+        self.settings["disconnect_alert"] = bool(enabled)
+        self._save()
+        if not enabled:
+            self._bar.set_disconnected(False)
 
     def _check_home_chirp(self, value):
         now = time.time()
@@ -836,6 +865,7 @@ class ThrottleController(QObject):
             (self.line_opacity_slider, lambda w: w.setValue(round(on["line_opacity"] * 100))),
             (self.chirp_enabled_check, lambda w: w.setChecked(on["home_chirp_enabled"])),
             (self.centre_zero_check, lambda w: w.setChecked(on["centre_zero_colors"])),
+            (self.disconnect_alert_check, lambda w: w.setChecked(on["disconnect_alert"])),
         )
         for widget, apply in pairs:
             widget.blockSignals(True)
