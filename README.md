@@ -49,3 +49,16 @@ Everything is saved to `config.json` **next to `mobiThrottle.exe`**. Delete it t
 ## License
 
 MIT — see [LICENSE](LICENSE). © 2026 TheRealKestryl.
+
+## Verify your download
+Releases are compiled by GitHub Actions from the tagged source — no locally built
+binaries are uploaded. Each release has a signed build-provenance attestation.
+
+```
+gh attestation verify mobiThrottle-vX.Y.Z-windows.zip --repo h2mCoreAi/mobiThrottle
+```
+Then check the hash matches the attached `.sha256`:
+```
+Get-FileHash mobiThrottle-vX.Y.Z-windows.zip -Algorithm SHA256
+```
+Security reports: see [SECURITY.md](SECURITY.md).

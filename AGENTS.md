@@ -14,7 +14,7 @@ network access. Redraw only on change. Ask the owner before adding a setting.
 
 See `docs/ARCHITECTURE.md` for the full map. Key files: `mobithrottle/app.py` (entry + tray + teardown),
 `mobithrottle/throttle.py` (bar + controller), `mobithrottle/settings_window.py`, `mobithrottle/config.py`,
-`tests/test_throttle.py`, `mobithrottle.spec`, `.github/workflows/release.yml`.
+`tests/test_throttle.py`, `mobithrottle.spec`, `.github/workflows/release.yml`, `.github/workflows/ci.yml`, `SECURITY.md`.
 
 ## Run from source
 
@@ -41,7 +41,9 @@ QT_QPA_PLATFORM=offscreen SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy MOBITHROTT
 - Local: `pip install -r requirements-build.txt` then `pyinstaller mobithrottle.spec --noconfirm`
   → `dist\mobiThrottle\mobiThrottle.exe` (onedir; keep `_internal\`). Details: `BUILD.md`.
 - Release: bump `mobithrottle/__init__.py` `__version__`, commit, push tag `vX.Y.Z`. CI builds on
-  windows-latest and publishes `mobiThrottle-vX.Y.Z-windows.zip` + `.sha256`.
+  windows-latest (Python 3.13), attests build provenance for exe + zip, and publishes
+  `mobiThrottle-vX.Y.Z-windows.zip` + `.sha256`. CI (`ci.yml`) must be green on main first.
+  Never upload locally built binaries to a release; users verify with `gh attestation verify`.
 
 ## Side-by-side testing (never disturb the owner's live copy)
 

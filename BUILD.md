@@ -28,5 +28,9 @@ Run the result from `dist\mobiThrottle\`. Its `config.json` is created next to t
 
 Push a tag `vX.Y.Z` → `.github/workflows/release.yml` runs on `windows-latest`: installs
 `requirements-build.txt`, runs the tests, builds the spec, and publishes
-`mobiThrottle-vX.Y.Z-windows.zip` + `.sha256` to a GitHub Release. Bump `__version__` in
-`mobithrottle/__init__.py` first.
+`mobiThrottle-vX.Y.Z-windows.zip` + `.sha256` to a GitHub Release, with a signed
+build-provenance attestation (`actions/attest-build-provenance`) for the exe and the zip.
+Bump `__version__` in `mobithrottle/__init__.py` first. Python 3.13 is pinned in CI.
+
+`.github/workflows/ci.yml` runs the tests + a PyInstaller smoke build on every push/PR to
+`main`. Release binaries are only ever produced by CI — never upload a locally built zip.

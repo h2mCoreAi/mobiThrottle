@@ -1,0 +1,50 @@
+name: CI
+
+# Runs the test suite and a full PyInstaller build on every push/PR to main so
+# breakage is caught before a release tag is cut.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-build:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: requirements*.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-build.txt
+
+      - name: Run tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+          SDL_VIDEODRIVER: dummy
+          SDL_AUDIODRIVER: dummy
+        run: python tests/test_throttle.py
+
+      - name: PyInstaller build (smoke)
+        run: pyinstaller mobithrottle.spec --noconfirm
+
+      - name: Check exe exists
+        shell: pwsh
+        run: |
+          if (-not (Test-Path dist/mobiThrottle/mobiThrottle.exe)) { throw "exe missing" }
+          "{0:N1} MB" -f ((Get-ChildItem dist/mobiThrottle -Recurse | Measure-Object Length -Sum).Sum / 1MB)
