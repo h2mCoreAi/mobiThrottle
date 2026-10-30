@@ -58,7 +58,9 @@ jobs:
           QT_QPA_PLATFORM: offscreen
           SDL_VIDEODRIVER: dummy
           SDL_AUDIODRIVER: dummy
-        run: python tests/test_throttle.py
+        run: |
+          python tests/test_throttle.py
+          python tests/test_setup_guide.py
 
       - name: PyInstaller build (smoke)
         run: pyinstaller mobithrottle.spec --noconfirm

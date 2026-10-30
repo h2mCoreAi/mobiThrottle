@@ -50,6 +50,7 @@ from .detect import (  # noqa: F401
     DETECT_MIN_TRAVEL,
     DETECT_SECONDS,
     AxisDetector,
+    AxisStats,
     detent_crossed,
     pick_axis,
 )
@@ -60,6 +61,7 @@ from .devices import (  # noqa: F401
     _generate_chirp_wav,
     find_joystick,
     list_joysticks,
+    play_disconnect_tone,
     play_home_tick,
 )
 from .hotkey import GlobalHotkey
@@ -84,6 +86,8 @@ class ThrottleController(QObject):
 
     bar_visibility_changed = Signal(bool)
     click_through_changed = Signal(bool)
+    # Emitted when an auto-detect finishes: (guid, name, axis) or None.
+    detect_finished = Signal(object)
 
     module_id = "mobi_throttle"
     display_name = (
@@ -131,6 +135,10 @@ class ThrottleController(QObject):
         "detent_2": None,
         "detent_1_chirp": False,
         "detent_2_chirp": False,
+        # Indicator turns green above zero / red below (track unchanged).
+        "centre_zero_colors": False,
+        # Grey the bar + one low tone when the selected device is unplugged.
+        "disconnect_alert": True,
     }
 
     def __init__(self, config) -> None:
@@ -147,6 +155,7 @@ class ThrottleController(QObject):
         self.status_label = None
         self._detector = None
         self._prev_value = 0.0
+        self.axis_stats = AxisStats()
 
         if not pygame.get_init():
             pygame.init()
@@ -243,6 +252,15 @@ class ThrottleController(QObject):
         axis_row.addStretch()
         layout.addLayout(axis_row)
 
+        self.disconnect_alert_check = QCheckBox("Disconnect alert")
+        self.disconnect_alert_check.setStyleSheet(_CHECK_STYLE)
+        self.disconnect_alert_check.setToolTip(
+            "Grey the bar and play one low tone if the device is unplugged"
+        )
+        self.disconnect_alert_check.setChecked(self.settings["disconnect_alert"])
+        self.disconnect_alert_check.toggled.connect(self.set_disconnect_alert)
+        layout.addWidget(self.disconnect_alert_check)
+
         apply_device_btn = QPushButton("APPLY DEVICE")
         apply_device_btn.setStyleSheet(_TOGGLE_BTN_STYLE)
         apply_device_btn.clicked.connect(self._on_apply_device_clicked)
@@ -284,6 +302,13 @@ class ThrottleController(QObject):
         colors_row.addWidget(self.bg_color_btn)
         colors_row.addStretch()
         layout.addLayout(colors_row)
+
+        self.centre_zero_check = QCheckBox("Centre-zero colours")
+        self.centre_zero_check.setStyleSheet(_CHECK_STYLE)
+        self.centre_zero_check.setToolTip("Indicator green above zero, red below; line colour near zero")
+        self.centre_zero_check.setChecked(self.settings["centre_zero_colors"])
+        self.centre_zero_check.toggled.connect(self.set_centre_zero_colors)
+        layout.addWidget(self.centre_zero_check)
 
         layout.addWidget(_hline())
         layout.addWidget(_section_header("HOTKEYS"))
@@ -445,29 +470,51 @@ class ThrottleController(QObject):
 
     def _on_apply_device_clicked(self):
         selection = self.device_combo.currentIndex()
-        axis = self.axis_spin.value()
-        if selection <= 0:
+        entry = self._device_list[selection - 1] if selection > 0 else None
+        axis = self.apply_device(entry, self.axis_spin.value(), self.axis_reverse_check.isChecked())
+        self.axis_spin.setValue(axis)
+
+    def apply_device(self, entry: dict | None, axis: int, reverse: bool) -> int:
+        """Select a device (a list_joysticks() entry, or None = auto/first)
+        plus axis/reverse, save, and reconnect. Returns the clamped axis.
+        Shared by the settings window and the setup guide."""
+        if entry is None:
             self.settings["device_guid"] = None
             self.settings["device_name"] = None
         else:
-            entry = self._device_list[selection - 1]
             self.settings["device_guid"] = entry["guid"]
             self.settings["device_name"] = entry["name"]
             axis = min(axis, max(0, entry["numaxes"] - 1))
-            self.axis_spin.setValue(axis)
         self.settings["axis_index"] = axis
-        self.settings["axis_reverse"] = self.axis_reverse_check.isChecked()
+        self.settings["axis_reverse"] = bool(reverse)
         self._save()
+        self.axis_stats.reset()
         # Force an immediate reconnect against the new selection instead of
         # waiting for the next refresh_interval_seconds tick.
         self._device = None
         if self.request_refresh is not None:
             self.request_refresh()
+        return axis
+
+    def set_centre_zero_colors(self, enabled: bool) -> None:
+        self.settings["centre_zero_colors"] = bool(enabled)
+        self._save()
+        self._bar.update()
+
+    def set_axis_reverse(self, reverse: bool) -> None:
+        self.settings["axis_reverse"] = bool(reverse)
+        self._save()
+
+    @property
+    def current_value(self) -> float:
+        """Latest axis value as drawn on the bar (reverse already applied)."""
+        return self._bar.value
 
     def _try_connect(self):
         # Cheap: device set is maintained by hot-plug events, no re-init.
         self._device = find_joystick(self.settings.get("device_guid"))
         if self._device is not None:
+            self._bar.set_disconnected(False)
             self.settings["device_name"] = self._device.get_name()
             self._save()
             self._set_status(f"Connected: {self.settings['device_name']}")
@@ -482,6 +529,7 @@ class ThrottleController(QObject):
             ):
                 self._device = None  # unplugged: never touch its handle again
                 self._set_status(RECONNECT_STATUS_UNAVAILABLE)
+                self._on_device_removed()
         except Exception:
             return
         if self._device is None or self._detector is not None:
@@ -495,9 +543,25 @@ class ThrottleController(QObject):
             self._device = None
             self._set_status(RECONNECT_STATUS_UNAVAILABLE)
             return
+        self.axis_stats.add(raw)
         value = -raw if self.settings["axis_reverse"] else raw
         self._bar.set_value(value)
         self._check_home_chirp(value)
+
+    def _on_device_removed(self) -> None:
+        """Selected device's JOYDEVICEREMOVED (seen via the shared _Joysticks
+        owner's pump in _poll). Grey the bar and play one tone; _try_connect
+        restores the look when it comes back. Never re-inits joysticks."""
+        if not self.settings["disconnect_alert"] or self._bar.disconnected:
+            return
+        self._bar.set_disconnected(True)
+        play_disconnect_tone()
+
+    def set_disconnect_alert(self, enabled: bool) -> None:
+        self.settings["disconnect_alert"] = bool(enabled)
+        self._save()
+        if not enabled:
+            self._bar.set_disconnected(False)
 
     def _check_home_chirp(self, value):
         now = time.time()
@@ -601,24 +665,32 @@ class ThrottleController(QObject):
             QColor(self.settings["line_color"]), self._settings_parent, "Line color"
         )
         if color.isValid():
-            self.settings["line_color"] = color.name()
+            self.set_line_color(color.name())
+
+    def set_line_color(self, hex_color: str) -> None:
+        self.settings["line_color"] = hex_color
+        if getattr(self, "line_color_btn", None) is not None:
             self.line_color_btn.setStyleSheet(
-                f"background: {color.name()}; border: 1px solid {theme.BORDER_FLAT}; border-radius: 4px;"
+                f"background: {hex_color}; border: 1px solid {theme.BORDER_FLAT}; border-radius: 4px;"
             )
-            self._save()
-            self._bar.update()
+        self._save()
+        self._bar.update()
 
     def _on_pick_bg_color(self):
         color = QColorDialog.getColor(
             QColor(self.settings["bg_color"]), self._settings_parent, "Background color"
         )
         if color.isValid():
-            self.settings["bg_color"] = color.name()
+            self.set_bg_color(color.name())
+
+    def set_bg_color(self, hex_color: str) -> None:
+        self.settings["bg_color"] = hex_color
+        if getattr(self, "bg_color_btn", None) is not None:
             self.bg_color_btn.setStyleSheet(
-                f"background: {color.name()}; border: 1px solid {theme.BORDER_FLAT}; border-radius: 4px;"
+                f"background: {hex_color}; border: 1px solid {theme.BORDER_FLAT}; border-radius: 4px;"
             )
-            self._save()
-            self._bar.update()
+        self._save()
+        self._bar.update()
 
     # -- hotkeys ------------------------------------------------------
     def _apply_hotkeys(self):
@@ -761,17 +833,55 @@ class ThrottleController(QObject):
             self.detect_btn.setEnabled(True)
         if result is None:
             self._set_status("No movement detected — try Detect again")
+            self.detect_finished.emit(None)
             return
         guid, name, axis = result
         self.settings["device_guid"] = guid
         self.settings["device_name"] = name
         self.settings["axis_index"] = axis
         self._save()
+        self.axis_stats.reset()
         if self.status_label is not None:
             self.axis_spin.setValue(axis, emit=False)
             self._refresh_device_list()
         self._device = None
         self._reconnect_tick()
+        self.detect_finished.emit(result)
+
+    def sync_settings_widgets(self) -> None:
+        """Re-read settings into the settings-window controls (after the
+        setup guide changed them). Signals blocked: values are already saved."""
+        if self.status_label is None:
+            return
+        on = self.settings
+        pairs = (
+            (self.click_through_check, lambda w: w.setChecked(on["click_through"])),
+            (self.axis_reverse_check, lambda w: w.setChecked(on["axis_reverse"])),
+            (
+                self.orientation_combo,
+                lambda w: w.setCurrentText("Horizontal" if on["orientation"] == "horizontal" else "Vertical"),
+            ),
+            (self.bg_opacity_slider, lambda w: w.setValue(round(on["bg_opacity"] * 100))),
+            (self.line_opacity_slider, lambda w: w.setValue(round(on["line_opacity"] * 100))),
+            (self.chirp_enabled_check, lambda w: w.setChecked(on["home_chirp_enabled"])),
+            (self.centre_zero_check, lambda w: w.setChecked(on["centre_zero_colors"])),
+            (self.disconnect_alert_check, lambda w: w.setChecked(on["disconnect_alert"])),
+        )
+        for widget, apply in pairs:
+            widget.blockSignals(True)
+            apply(widget)
+            widget.blockSignals(False)
+        self.axis_spin.setValue(on["axis_index"], emit=False)
+        self.chirp_count_spin.setValue(on["home_chirp_count"], emit=False)
+        self.toggle_hotkey_field.setText(on["toggle_hotkey_display"] or "Click to set…")
+        self.position_hotkey_field.setText(on["position_hotkey_display"] or "Click to set…")
+        for which in ("line", "bg"):
+            getattr(self, f"{which}_color_btn").setStyleSheet(
+                f"background: {on[which + '_color']}; border: 1px solid {theme.BORDER_FLAT}; border-radius: 4px;"
+            )
+        self._update_toggle_btn_text()
+        self._render_detents()
+        self._refresh_device_list()
 
     def shutdown(self) -> None:
         """Releases the two OS-level global keyboard hooks this module

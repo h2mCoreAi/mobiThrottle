@@ -127,6 +127,15 @@ def _build_tray(app, controller, window, icon):
     return tray
 
 
+def schedule_first_run(controller, window, delay_ms: int = 300) -> bool:
+    """First run: open the setup guide (replaces the old silent auto-detect).
+    Returns True if it was scheduled."""
+    if not controller.first_run:
+        return False
+    QTimer.singleShot(delay_ms, window.open_setup_guide)
+    return True
+
+
 def main(argv: list[str] | None = None) -> int:
     global _instance_lock, _controller
     logging.basicConfig(level=logging.INFO, format="%(name)s: %(message)s")
@@ -179,11 +188,10 @@ def main(argv: list[str] | None = None) -> int:
     heartbeat.start(500)
 
     splash.finish(window)
-    # First run, or no tray available: show settings so the user can find it.
-    if controller.first_run or not QSystemTrayIcon.isSystemTrayAvailable():
+    # No tray available: show settings so the user can find the app.
+    if not QSystemTrayIcon.isSystemTrayAvailable():
         window.show_and_raise()
-    if controller.first_run:
-        QTimer.singleShot(300, controller.start_detect)
+    schedule_first_run(controller, window)
 
     smoke_ms = int(os.environ.get("MOBITHROTTLE_SMOKE_MS", "0") or 0)
     if smoke_ms > 0:

@@ -4,14 +4,63 @@ strip with the two-tone mobiThrottle title) and holds exactly the card's
 controls via ThrottleController.build_settings(). Closing hides to tray."""
 
 from PySide6.QtCore import QEvent, Qt, QTimer
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QScrollArea, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton, QScrollArea, QVBoxLayout, QWidget
 
 from . import theme
 from .throttle import ThrottleController
+from .widgets import _TOGGLE_BTN_STYLE
 
 
 class _CardFrame(QFrame):
     pass
+
+
+def build_card(title_text: str) -> tuple[QFrame, QVBoxLayout]:
+    """The card body + two-tone header strip shared by the settings window
+    and the setup guide. Returns (card, card_layout); header already added."""
+    card = _CardFrame()
+    card.setStyleSheet(f"""
+        _CardFrame {{
+            background: {theme.BG_PANEL};
+            border: 1px solid {theme.BORDER_CYAN};
+            border-radius: {theme.RADIUS}px;
+        }}
+    """)
+    card_layout = QVBoxLayout(card)
+    card_layout.setContentsMargins(0, 0, 0, 0)
+    card_layout.setSpacing(0)
+
+    header = QFrame()
+    header.setObjectName("hdr")
+    header.setFixedHeight(theme.CARD_HEADER_HEIGHT)
+    header.setStyleSheet(f"""
+        QFrame#hdr {{
+            background: {theme.BG_PANEL_HEADER};
+            border-top-left-radius: {theme.RADIUS}px;
+            border-top-right-radius: {theme.RADIUS}px;
+            border-bottom: 1px solid {theme.BORDER_FLAT};
+        }}
+    """)
+    hl = QHBoxLayout(header)
+    hl.setContentsMargins(12, 0, 10, 0)
+    dot = QLabel("●")
+    dot.setStyleSheet(f"color: {theme.ACCENT_CYAN}; font-size: {theme.fpx(9)}px;")
+    hl.addWidget(dot)
+    title = QLabel(title_text)
+    title.setTextInteractionFlags(Qt.NoTextInteraction)
+    title.setStyleSheet(
+        f'font-family: "{theme.FONT_DISPLAY}"; font-weight: 700; font-size: {theme.fpx(11)}px;'
+    )
+    hl.addWidget(title)
+    hl.addStretch()
+    byline = QLabel(
+        f'<span style="color:{theme.TEXT_MUTED};">by </span>'
+        f'<span style="color:{theme.ACCENT_CYAN};">TheRealKestryl</span>'
+    )
+    byline.setStyleSheet(f'font-family: "{theme.FONT_MONO}"; font-size: {theme.fpx(9)}px;')
+    hl.addWidget(byline)
+    card_layout.addWidget(header)
+    return card, card_layout
 
 
 class SettingsWindow(QWidget):
@@ -25,55 +74,20 @@ class SettingsWindow(QWidget):
         outer = QVBoxLayout(self)
         outer.setContentsMargins(8, 8, 8, 8)
 
-        card = _CardFrame()
-        card.setStyleSheet(f"""
-            _CardFrame {{
-                background: {theme.BG_PANEL};
-                border: 1px solid {theme.BORDER_CYAN};
-                border-radius: {theme.RADIUS}px;
-            }}
-        """)
-        card_layout = QVBoxLayout(card)
-        card_layout.setContentsMargins(0, 0, 0, 0)
-        card_layout.setSpacing(0)
-
-        header = QFrame()
-        header.setObjectName("hdr")
-        header.setFixedHeight(theme.CARD_HEADER_HEIGHT)
-        header.setStyleSheet(f"""
-            QFrame#hdr {{
-                background: {theme.BG_PANEL_HEADER};
-                border-top-left-radius: {theme.RADIUS}px;
-                border-top-right-radius: {theme.RADIUS}px;
-                border-bottom: 1px solid {theme.BORDER_FLAT};
-            }}
-        """)
-        hl = QHBoxLayout(header)
-        hl.setContentsMargins(12, 0, 10, 0)
-        dot = QLabel("●")
-        dot.setStyleSheet(f"color: {theme.ACCENT_CYAN}; font-size: {theme.fpx(9)}px;")
-        hl.addWidget(dot)
-        title = QLabel(controller.display_name)
-        title.setTextInteractionFlags(Qt.NoTextInteraction)
-        title.setStyleSheet(
-            f'font-family: "{theme.FONT_DISPLAY}"; font-weight: 700; font-size: {theme.fpx(11)}px;'
-        )
-        hl.addWidget(title)
-        hl.addStretch()
-        byline = QLabel(
-            f'<span style="color:{theme.TEXT_MUTED};">by </span>'
-            f'<span style="color:{theme.ACCENT_CYAN};">TheRealKestryl</span>'
-        )
-        byline.setStyleSheet(f'font-family: "{theme.FONT_MONO}"; font-size: {theme.fpx(9)}px;')
-        hl.addWidget(byline)
-        card_layout.addWidget(header)
+        card, card_layout = build_card(controller.display_name)
 
         body = QWidget()
         body.setStyleSheet("background: transparent;")
         body_layout = QVBoxLayout(body)
         body_layout.setContentsMargins(12, 10, 12, 12)
         body_layout.setSpacing(8)
+        guide_btn = QPushButton("SETUP GUIDE")
+        guide_btn.setStyleSheet(_TOGGLE_BTN_STYLE)
+        guide_btn.setToolTip("Step-by-step setup: device, axis, look, chirp, detents, hotkeys")
+        guide_btn.clicked.connect(self.open_setup_guide)
+        self.guide_btn = guide_btn
         controller.build_settings(body_layout, self)
+        body_layout.insertWidget(1, guide_btn)
         body_layout.addStretch()
 
         scroll = QScrollArea()
@@ -87,6 +101,20 @@ class SettingsWindow(QWidget):
         outer.addWidget(card)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.resize(420, 760)
+
+    setup_guide = None
+
+    def open_setup_guide(self) -> None:
+        """Open (or raise) the setup guide. Lazy import: setup_guide imports
+        build_card from this module."""
+        if self.setup_guide is None:
+            from .setup_guide import SetupGuide
+
+            self.setup_guide = SetupGuide(self.controller, self.windowIcon())
+        self.setup_guide.go(0)
+        self.setup_guide.show()
+        self.setup_guide.raise_()
+        self.setup_guide.activateWindow()
 
     def show_and_raise(self) -> None:
         self.show()

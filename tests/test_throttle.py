@@ -250,7 +250,106 @@ def t_single_instance():
     check("lock released on exit", True)
 
 
+def t_indicator_color():
+    from mobithrottle import bar
+
+    ic = bar.indicator_color
+    lc = "#6ec8ff"
+    check("centre-zero off = legacy colour", ic(0.8, lc, False) == bar.value_to_color(0.8, lc))
+    check("centre-zero forward", ic(0.5, lc, True) == bar.FORWARD_COLOR)
+    check("centre-zero reverse", ic(-0.5, lc, True) == bar.REVERSE_COLOR)
+    check("centre-zero neutral band", ic(0.01, lc, True) == lc and ic(-0.02, lc, True) == lc)
+    c = Config(tmp / "cz.json")
+    ctl = throttle.ThrottleController(c)
+    check("centre-zero default off", ctl.settings["centre_zero_colors"] is False)
+    ctl.set_centre_zero_colors(True)
+    check("centre-zero saved", Config(c.path).settings["centre_zero_colors"] is True)
+    ctl._bar.set_value(-0.6)
+    ctl._bar.grab()
+    ctl.shutdown()
+
+
+def t_axis_stats():
+    st = throttle.AxisStats()
+    check("readout empty", "Move the throttle" in st.text(False, 0.03))
+    for v in (-1.0, 0.2, 0.9):
+        st.add(v)
+    check("min/max/raw", st.lo == -1.0 and st.hi == 0.9 and st.raw == 0.9)
+    for i in range(40):
+        st.add(0.98 + (0.004 if i % 2 else 0.0))
+    check("rest jitter measured", st.rest_jitter is not None and abs(st.rest_jitter - 0.004) < 1e-9)
+    check("suggest reverse when resting at far end", "tick Reverse" in st.suggestion(False, 0.03))
+    check("no reverse hint once reversed", "direction looks right" in st.suggestion(True, 0.03))
+    check("deadzone floor", st.suggested_deadzone(0.03) == 0.03)
+    for i in range(40):
+        st.add(0.5 + (0.04 if i % 2 else 0.0))
+    check("deadzone from jitter", st.suggested_deadzone(0.03) == 0.06, st.suggested_deadzone(0.03))
+    st.reset()
+    check("reset", st.raw is None and st.rest_jitter is None)
+
+
+def t_disconnect_alert():
+    import pygame
+
+    class FakeJoy:
+        def get_name(self):
+            return "Fake Throttle"
+
+        def get_axis(self, _i):
+            return 0.0
+
+    quits, tones = [], []
+    orig = (
+        pygame.joystick.quit,
+        throttle.JOYSTICKS.pump,
+        throttle.play_disconnect_tone,
+        throttle.find_joystick,
+    )
+    pygame.joystick.quit = lambda: quits.append(1)
+    throttle.play_disconnect_tone = lambda: tones.append(1)
+    try:
+        c = Config(tmp / "dc.json")
+        ctl = throttle.ThrottleController(c)
+        ctl._poll_timer.stop()
+        ctl._reconnect_timer.stop()
+        check("disconnect alert default on", ctl.settings["disconnect_alert"] is True)
+        ctl._device = FakeJoy()  # not in JOYSTICKS.devices -> looks removed
+        throttle.JOYSTICKS.pump = lambda: True
+        ctl._poll()
+        check(
+            "removed: bar greyed + one tone", ctl._bar.disconnected and tones == [1] and ctl._device is None
+        )
+        ctl._bar.grab()
+        ctl._device = FakeJoy()
+        ctl._poll()
+        check("tone plays once per disconnect", tones == [1])
+        throttle.find_joystick = lambda _guid: FakeJoy()
+        ctl._try_connect()
+        check("reconnect restores look", not ctl._bar.disconnected)
+        ctl.set_disconnect_alert(False)
+        ctl._device = FakeJoy()
+        ctl._poll()
+        check("alert off: no grey, no tone", not ctl._bar.disconnected and tones == [1])
+        check("saved", Config(c.path).settings["disconnect_alert"] is False)
+        ctl.shutdown()
+    finally:
+        (
+            pygame.joystick.quit,
+            throttle.JOYSTICKS.pump,
+            throttle.play_disconnect_tone,
+            throttle.find_joystick,
+        ) = orig
+    check("disconnect path never re-inits joysticks", not quits)
+    from mobithrottle import devices
+
+    check("disconnect tone distinct", devices.DISCONNECT_TONE_FREQ != devices.HOME_TICK_FREQ)
+    devices.play_disconnect_tone()  # must not raise with dummy audio
+
+
 for n, f in [
+    ("disconnect_alert", t_disconnect_alert),
+    ("axis_stats", t_axis_stats),
+    ("indicator_color", t_indicator_color),
     ("single_instance", t_single_instance),
     ("colors", t_colors),
     ("chirp", t_chirp),

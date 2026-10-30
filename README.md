@@ -14,8 +14,10 @@ any game process.
    `mobiThrottle.exe` needs the `_internal\` folder next to it.
 3. Double-click `mobiThrottle.exe`.
 
-On first run the Settings window opens and **Detect** starts automatically: move your throttle
-through its full range for ~3 seconds and mobiThrottle picks the device and axis that moved most.
+On first run the **Setup guide** opens and walks you through 11 short steps: device, throttle
+axis (Detect or pick by hand, with a live preview), direction, orientation, colors, home chirp,
+detents, hotkeys and click-through. Each change applies immediately; **Cancel** closes the guide
+and keeps whatever you already set. Reopen it any time from Settings → **SETUP GUIDE**.
 
 ## Using it
 
@@ -33,6 +35,15 @@ through its full range for ~3 seconds and mobiThrottle picks the device and axis
   *Set* — an amber marker appears on the bar. Tick *Chirp* to beep when you cross it.
 - **Positions**: save two bar locations (SCM / NAV) and jump between them.
 - **Hotkeys** (optional, none by default): toggle the bar or swap positions from anywhere.
+
+## Extras
+
+- **Centre-zero colours** (Settings → Appearance, off by default): the moving indicator turns
+  green above zero and red below, keeping your line colour in a small band around zero.
+- **Disconnect alert** (Settings → Device, on by default): if your selected controller is
+  unplugged the bar greys out and plays one low tone; it returns to normal when reconnected.
+- The setup guide's Axis and Direction steps show a live readout (raw value, min/max, rest
+  jitter) with a one-line hint about Reverse and a suggested deadzone.
 
 ## Settings file
 

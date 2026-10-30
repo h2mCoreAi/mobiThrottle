@@ -11,8 +11,13 @@ mobithrottle/
                      colour helpers, default bar position
   devices.py         _Joysticks single owner (hot-plug, never re-inits), list/find_joystick, chirp
   widgets.py         settings-panel styles, _Stepper, _HotkeyField
-  detect.py          detent_crossed / pick_axis / AxisDetector (v1 additions)
-  settings_window.py card-styled window hosting build_settings(); close = hide to tray
+  detect.py          detent_crossed / pick_axis / AxisDetector (v1 additions); AxisStats readout
+  settings_window.py card-styled window hosting build_settings(); close = hide to tray;
+                     build_card() (shared card+header) and the SETUP GUIDE button
+  setup_guide.py     SetupGuide wizard: QStackedWidget of 11 _Step pages + LiveBar preview.
+                     Writes only through ThrottleController setters/handlers (apply-as-you-go);
+                     detect via controller.start_detect -> detect_finished signal (shared
+                     _Joysticks owner, no pygame calls of its own)
   splash.py          mobiOverlay's splash, same style, "mobiThrottle / by TheRealKestryl"
   config.py          flat config.json next to exe (frozen) / repo root (source); atomic save
   paths.py           app_root() (persistent) vs assets_dir() (bundled)
@@ -22,6 +27,7 @@ mobithrottle/
   icon.py            draws the tray/app icon
   assets/            fonts (OFL), mobithrottle.png/.ico
 tests/test_throttle.py   headless script-style tests
+tests/test_setup_guide.py  guide steps/navigation/settings writes/first run/button
 mobithrottle.spec        PyInstaller onedir; entry script mobithrottle_entry.py
 ```
 

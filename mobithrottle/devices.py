@@ -10,6 +10,9 @@ from PySide6.QtCore import QTimer
 
 HOME_TICK_FREQ = 1400
 HOME_TICK_MS = 45
+# Disconnect alert: lower and longer than the home tick so it reads differently.
+DISCONNECT_TONE_FREQ = 520
+DISCONNECT_TONE_MS = 170
 
 
 _chirp_sound = None  # lazily-initialized pygame.mixer.Sound
@@ -57,6 +60,23 @@ def _init_chirp_sound():
         return True
     except Exception:
         return False
+
+
+_disconnect_sound = None
+
+
+def play_disconnect_tone() -> None:
+    """One short low tone, distinct from the home chirp. Silent on failure."""
+    global _disconnect_sound
+    if not _init_chirp_sound():  # also initialises the shared mixer
+        return
+    try:
+        if _disconnect_sound is None:
+            wav = _generate_chirp_wav(DISCONNECT_TONE_FREQ, DISCONNECT_TONE_MS, volume=0.35)
+            _disconnect_sound = pygame.mixer.Sound(io.BytesIO(wav))
+        _disconnect_sound.play()
+    except Exception:
+        pass
 
 
 def play_home_tick(count: int) -> None:
