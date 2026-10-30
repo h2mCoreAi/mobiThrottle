@@ -115,8 +115,13 @@ def row_style(padding: str, border: str | None = None) -> str:
     return f"border: 1px solid {border or BORDER_FLAT}; border-radius: {RADIUS}px; padding: {padding};"
 
 
-def text_style(size: int, color: str | None = None, family: str | None = None,
-               weight: str | int | None = None, letter_spacing: int | None = None) -> str:
+def text_style(
+    size: int,
+    color: str | None = None,
+    family: str | None = None,
+    weight: str | int | None = None,
+    letter_spacing: int | None = None,
+) -> str:
     """Plain label text: color/font/size, optional weight and letter-spacing."""
     parts = [f"color: {color};"] if color else []
     parts.append(f'font-family: "{family or FONT_MONO}";')
@@ -128,9 +133,15 @@ def text_style(size: int, color: str | None = None, family: str | None = None,
     return " ".join(parts)
 
 
-def field_style(widget: str, color: str, size: int, padding: str | None = None,
-                family: str | None = None, weight: str | int | None = None,
-                drop_down: int | None = None) -> str:
+def field_style(
+    widget: str,
+    color: str,
+    size: int,
+    padding: str | None = None,
+    family: str | None = None,
+    weight: str | int | None = None,
+    drop_down: int | None = None,
+) -> str:
     """Dark input-field style for QComboBox / QLineEdit / QTextEdit / QListWidget.
     `drop_down` sets the combo arrow column width."""
     border = f"border: 1px solid {BORDER_FLAT}; border-radius: {RADIUS}px;"
@@ -140,8 +151,10 @@ def field_style(widget: str, color: str, size: int, padding: str | None = None,
     if weight:
         font += f" font-weight: {weight};"
     font += f" font-size: {fpx(size)}px;"
-    out = (f"\n    {widget} {{\n        background: {BG_VOID}; color: {color};\n"
-           f"        {border}\n        {font}\n    }}\n")
+    out = (
+        f"\n    {widget} {{\n        background: {BG_VOID}; color: {color};\n"
+        f"        {border}\n        {font}\n    }}\n"
+    )
     if drop_down:
         out += f"    {widget}::drop-down {{ width: {drop_down}px; border: none; }}\n"
     return out

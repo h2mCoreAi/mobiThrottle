@@ -2,6 +2,7 @@
 whose body is styled like an overlay card (BG_PANEL, cyan border, header
 strip with the two-tone mobiThrottle title) and holds exactly the card's
 controls via ThrottleController.build_settings(). Closing hides to tray."""
+
 from PySide6.QtCore import QEvent, Qt, QTimer
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QScrollArea, QVBoxLayout, QWidget
 
@@ -54,11 +55,15 @@ class SettingsWindow(QWidget):
         hl.addWidget(dot)
         title = QLabel(controller.display_name)
         title.setTextInteractionFlags(Qt.NoTextInteraction)
-        title.setStyleSheet(f'font-family: "{theme.FONT_DISPLAY}"; font-weight: 700; font-size: {theme.fpx(11)}px;')
+        title.setStyleSheet(
+            f'font-family: "{theme.FONT_DISPLAY}"; font-weight: 700; font-size: {theme.fpx(11)}px;'
+        )
         hl.addWidget(title)
         hl.addStretch()
-        byline = QLabel(f'<span style="color:{theme.TEXT_MUTED};">by </span>'
-                        f'<span style="color:{theme.ACCENT_CYAN};">TheRealKestryl</span>')
+        byline = QLabel(
+            f'<span style="color:{theme.TEXT_MUTED};">by </span>'
+            f'<span style="color:{theme.ACCENT_CYAN};">TheRealKestryl</span>'
+        )
         byline.setStyleSheet(f'font-family: "{theme.FONT_MONO}"; font-size: {theme.fpx(9)}px;')
         hl.addWidget(byline)
         card_layout.addWidget(header)
@@ -74,7 +79,9 @@ class SettingsWindow(QWidget):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.NoFrame)
-        scroll.setStyleSheet("QScrollArea { background: transparent; } QScrollArea > QWidget > QWidget { background: transparent; }")
+        scroll.setStyleSheet(
+            "QScrollArea { background: transparent; } QScrollArea > QWidget > QWidget { background: transparent; }"
+        )
         scroll.setWidget(body)
         card_layout.addWidget(scroll)
         outer.addWidget(card)

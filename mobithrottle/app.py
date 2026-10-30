@@ -5,6 +5,7 @@ tray icon, and hotkey teardown on every exit path.
 Env MOBITHROTTLE_SMOKE_MS=<n>: quit automatically after n ms (headless
 smoke test; see AGENTS.md).
 """
+
 import atexit
 import logging
 import os
@@ -57,6 +58,7 @@ def _install_crash_log():
     try:
         import faulthandler
         from .paths import app_root
+
         _crash_file = open(app_root() / "mobiThrottle-crash.log", "a", buffering=1, encoding="utf-8")
         faulthandler.enable(_crash_file, all_threads=True)
     except Exception:
@@ -67,6 +69,7 @@ def _log_exception(exc_type, exc_value, exc_tb):
     if _crash_file is not None:
         try:
             import time
+
             _crash_file.write(f"\n--- {time.strftime('%Y-%m-%d %H:%M:%S')} unhandled exception ---\n")
             traceback.print_exception(exc_type, exc_value, exc_tb, file=_crash_file)
             _crash_file.flush()
@@ -80,6 +83,7 @@ def _install_excepthook():
         _log_exception(exc_type, exc_value, exc_tb)
         if issubclass(exc_type, (KeyboardInterrupt, SystemExit)):
             _teardown()
+
     sys.excepthook = _hook
 
 
@@ -114,7 +118,8 @@ def _build_tray(app, controller, window, icon):
     tray.activated.connect(
         # Trigger only: on Windows a double-click also emits Trigger, so handling
         # DoubleClick too would toggle twice.
-        lambda reason: window.toggle_visible() if reason == QSystemTrayIcon.Trigger else None)
+        lambda reason: window.toggle_visible() if reason == QSystemTrayIcon.Trigger else None
+    )
     tray._menu = menu  # keep alive
     if QSystemTrayIcon.isSystemTrayAvailable():
         tray.show()
@@ -161,6 +166,7 @@ def main(argv=None):
     def _on_signal(*_):
         _teardown()
         request_quit(app, window)
+
     for sig in (signal.SIGINT, signal.SIGTERM):
         try:
             signal.signal(sig, _on_signal)

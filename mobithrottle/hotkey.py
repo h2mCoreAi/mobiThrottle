@@ -1,6 +1,7 @@
 """Vendored from mobiOverlay host/hotkey.py (commit 55532f3), with Win32 /
 `keyboard` imports guarded so the module imports on non-Windows.
 """
+
 """System-wide (global) hotkey support via a low-level keyboard hook.
 
 Plain Qt shortcuts (QShortcut) only fire while the app itself has focus —

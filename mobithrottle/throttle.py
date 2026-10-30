@@ -7,6 +7,7 @@ replaced by ThrottleController + build_settings() (hosted by
 settings_window.SettingsWindow). v1 additions: detents and auto-detect.
 Passive HID reads only — never touches any game process.
 """
+
 import ctypes
 import sys
 import io
@@ -20,8 +21,17 @@ import pygame  # provided by the pygame-ce package (see requirements.txt)
 from PySide6.QtCore import QObject, Qt, QTimer, QRectF, QPointF, Signal
 from PySide6.QtGui import QColor, QGuiApplication, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import (
-    QCheckBox, QColorDialog, QComboBox, QFrame, QGridLayout,
-    QHBoxLayout, QLabel, QLineEdit, QPushButton, QSlider, QVBoxLayout,
+    QCheckBox,
+    QColorDialog,
+    QComboBox,
+    QFrame,
+    QGridLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QSlider,
+    QVBoxLayout,
     QWidget,
 )
 
@@ -75,13 +85,13 @@ def panel_radius_for(w, h):
 
 def dim_color(hex_color, factor=0.55):
     hex_color = hex_color.lstrip("#")
-    r, g, b = (int(hex_color[i:i + 2], 16) for i in (0, 2, 4))
+    r, g, b = (int(hex_color[i : i + 2], 16) for i in (0, 2, 4))
     return "#%02x%02x%02x" % (int(r * factor), int(g * factor), int(b * factor))
 
 
 def lerp_color(hex_a, hex_b, t):
-    a = tuple(int(hex_a.lstrip("#")[i:i + 2], 16) for i in (0, 2, 4))
-    b = tuple(int(hex_b.lstrip("#")[i:i + 2], 16) for i in (0, 2, 4))
+    a = tuple(int(hex_a.lstrip("#")[i : i + 2], 16) for i in (0, 2, 4))
+    b = tuple(int(hex_b.lstrip("#")[i : i + 2], 16) for i in (0, 2, 4))
     r, g, bl = (round(a[i] + (b[i] - a[i]) * t) for i in range(3))
     return "#%02x%02x%02x" % (r, g, bl)
 
@@ -213,8 +223,9 @@ class _Joysticks:
                 guid = j.get_guid()
             except AttributeError:  # pragma: no cover
                 guid = None
-            out.append({"index": iid, "name": j.get_name(), "guid": guid,
-                        "numaxes": j.get_numaxes(), "joy": j})
+            out.append(
+                {"index": iid, "name": j.get_name(), "guid": guid, "numaxes": j.get_numaxes(), "joy": j}
+            )
         return out
 
 
@@ -320,8 +331,12 @@ class _ThrottleBar(QWidget):
         if event.button() == Qt.LeftButton:
             self._drag_offset = event.globalPosition().toPoint() - self.pos()
         elif event.button() == Qt.RightButton:
-            self._resize_start = (event.globalPosition().x(), event.globalPosition().y(),
-                                   self.width(), self.height())
+            self._resize_start = (
+                event.globalPosition().x(),
+                event.globalPosition().y(),
+                self.width(),
+                self.height(),
+            )
 
     def mouseMoveEvent(self, event):
         if self._drag_offset is not None:
@@ -432,7 +447,8 @@ class _ThrottleBar(QWidget):
         painter.setBrush(QColor(knob_color))
         painter.drawRoundedRect(
             rect_from_ac(pos_along - half, cross0 - 4, pos_along + half, cross1 + 4),
-            theme.RADIUS, theme.RADIUS,
+            theme.RADIUS,
+            theme.RADIUS,
         )
         hx0, hy0 = to_xy(pos_along - half + 2, cross0 - 2)
         hx1, hy1 = to_xy(pos_along - half + 2, cross1 + 2)
@@ -636,20 +652,29 @@ class ThrottleController(QObject):
         "axis_index": 0,
         "axis_reverse": False,
         "orientation": "vertical",
-        "width": 60, "height": 260,
-        "bg_color": theme.BG_PANEL, "line_color": theme.ACCENT_CYAN,
-        "bg_opacity": 0.85, "line_opacity": 1.0,
+        "width": 60,
+        "height": 260,
+        "bg_color": theme.BG_PANEL,
+        "line_color": theme.ACCENT_CYAN,
+        "bg_opacity": 0.85,
+        "line_opacity": 1.0,
         "bar_visible": True,
         "click_through": False,
-        "home_chirp_enabled": True, "home_chirp_count": 1, "home_chirp_cooldown": 2.0,
-        "position_1": None, "position_2": None,
-        "position_1_enabled": True, "position_2_enabled": True,
+        "home_chirp_enabled": True,
+        "home_chirp_count": 1,
+        "home_chirp_cooldown": 2.0,
+        "position_1": None,
+        "position_2": None,
+        "position_1_enabled": True,
+        "position_2_enabled": True,
         # No hotkeys by default: GlobalHotkey only installs its low-level
         # keyboard hook once a combo is set, so a user who never sets one
         # (most users, with no throttle at all) never gets a hook from this
         # module. Existing installs keep whatever combo is already saved.
-        "toggle_hotkey": "", "toggle_hotkey_display": "",
-        "position_hotkey": "", "position_hotkey_display": "",
+        "toggle_hotkey": "",
+        "toggle_hotkey_display": "",
+        "position_hotkey": "",
+        "position_hotkey_display": "",
         "position_hold_ms": 0,
         # Reconnect-check cadence — decoupled from the bar's own 60Hz poll
         # timer (see refresh()); much shorter than the host's 300s default
@@ -657,8 +682,10 @@ class ThrottleController(QObject):
         "refresh_interval_seconds": 5,
         # v1 additions (not in the overlay module). Detents are axis values
         # in -1..1, None = not set; chirping on a detent crossing is opt-in.
-        "detent_1": None, "detent_2": None,
-        "detent_1_chirp": False, "detent_2_chirp": False,
+        "detent_1": None,
+        "detent_2": None,
+        "detent_1_chirp": False,
+        "detent_2_chirp": False,
     }
 
     def __init__(self, config):
@@ -755,7 +782,9 @@ class ThrottleController(QObject):
         device_row.addWidget(refresh_devices_btn)
         self.detect_btn = QPushButton("Detect")
         self.detect_btn.setStyleSheet(_SMALL_BTN_STYLE)
-        self.detect_btn.setToolTip("Move your throttle through its range for ~3 s; picks the device + axis that moved most")
+        self.detect_btn.setToolTip(
+            "Move your throttle through its range for ~3 s; picks the device + axis that moved most"
+        )
         self.detect_btn.clicked.connect(self.start_detect)
         device_row.addWidget(self.detect_btn)
         layout.addLayout(device_row)
@@ -785,17 +814,22 @@ class ThrottleController(QObject):
         self.orientation_combo.setStyleSheet(_COMBO_STYLE)
         self.orientation_combo.addItems(["Vertical", "Horizontal"])
         self.orientation_combo.setCurrentText(
-            "Horizontal" if self.settings["orientation"] == "horizontal" else "Vertical")
+            "Horizontal" if self.settings["orientation"] == "horizontal" else "Vertical"
+        )
         self.orientation_combo.currentTextChanged.connect(self._on_orientation_changed)
         orientation_row.addWidget(self.orientation_combo, 1)
         layout.addLayout(orientation_row)
 
         layout.addWidget(self._label("Background opacity:"))
-        self.bg_opacity_slider = self._opacity_slider(self.settings["bg_opacity"], self._on_bg_opacity_changed)
+        self.bg_opacity_slider = self._opacity_slider(
+            self.settings["bg_opacity"], self._on_bg_opacity_changed
+        )
         layout.addWidget(self.bg_opacity_slider)
 
         layout.addWidget(self._label("Line opacity:"))
-        self.line_opacity_slider = self._opacity_slider(self.settings["line_opacity"], self._on_line_opacity_changed)
+        self.line_opacity_slider = self._opacity_slider(
+            self.settings["line_opacity"], self._on_line_opacity_changed
+        )
         layout.addWidget(self.line_opacity_slider)
 
         colors_row = QHBoxLayout()
@@ -814,14 +848,16 @@ class ThrottleController(QObject):
         toggle_hotkey_row = QHBoxLayout()
         toggle_hotkey_row.addWidget(self._label("Toggle bar:"))
         self.toggle_hotkey_field = _HotkeyField(
-            self._toggle_hotkey, self.settings["toggle_hotkey_display"], self._on_toggle_hotkey_applied)
+            self._toggle_hotkey, self.settings["toggle_hotkey_display"], self._on_toggle_hotkey_applied
+        )
         toggle_hotkey_row.addWidget(self.toggle_hotkey_field, 1)
         layout.addLayout(toggle_hotkey_row)
 
         pos_hotkey_row = QHBoxLayout()
         pos_hotkey_row.addWidget(self._label("Toggle position:"))
         self.position_hotkey_field = _HotkeyField(
-            self._position_hotkey, self.settings["position_hotkey_display"], self._on_position_hotkey_applied)
+            self._position_hotkey, self.settings["position_hotkey_display"], self._on_position_hotkey_applied
+        )
         pos_hotkey_row.addWidget(self.position_hotkey_field, 1)
         layout.addLayout(pos_hotkey_row)
 
@@ -838,29 +874,37 @@ class ThrottleController(QObject):
 
         grid = QGridLayout()
         grid.addWidget(self._label("SCM Mode:"), 0, 0)
-        scm_set = QPushButton("Set"); scm_set.setStyleSheet(_SMALL_BTN_STYLE)
+        scm_set = QPushButton("Set")
+        scm_set.setStyleSheet(_SMALL_BTN_STYLE)
         scm_set.clicked.connect(lambda: self._save_position("position_1"))
         grid.addWidget(scm_set, 0, 1)
-        scm_go = QPushButton("Go"); scm_go.setStyleSheet(_SMALL_BTN_STYLE)
+        scm_go = QPushButton("Go")
+        scm_go.setStyleSheet(_SMALL_BTN_STYLE)
         scm_go.clicked.connect(lambda: self._go_to_position("position_1", 0))
         grid.addWidget(scm_go, 0, 2)
         self.scm_enabled_check = QCheckBox("Enabled")
         self.scm_enabled_check.setStyleSheet(_CHECK_STYLE)
         self.scm_enabled_check.setChecked(self.settings["position_1_enabled"])
-        self.scm_enabled_check.toggled.connect(lambda v: self._on_position_enabled_toggled("position_1_enabled", v))
+        self.scm_enabled_check.toggled.connect(
+            lambda v: self._on_position_enabled_toggled("position_1_enabled", v)
+        )
         grid.addWidget(self.scm_enabled_check, 0, 3)
 
         grid.addWidget(self._label("NAV Mode:"), 1, 0)
-        nav_set = QPushButton("Set"); nav_set.setStyleSheet(_SMALL_BTN_STYLE)
+        nav_set = QPushButton("Set")
+        nav_set.setStyleSheet(_SMALL_BTN_STYLE)
         nav_set.clicked.connect(lambda: self._save_position("position_2"))
         grid.addWidget(nav_set, 1, 1)
-        nav_go = QPushButton("Go"); nav_go.setStyleSheet(_SMALL_BTN_STYLE)
+        nav_go = QPushButton("Go")
+        nav_go.setStyleSheet(_SMALL_BTN_STYLE)
         nav_go.clicked.connect(lambda: self._go_to_position("position_2", 1))
         grid.addWidget(nav_go, 1, 2)
         self.nav_enabled_check = QCheckBox("Enabled")
         self.nav_enabled_check.setStyleSheet(_CHECK_STYLE)
         self.nav_enabled_check.setChecked(self.settings["position_2_enabled"])
-        self.nav_enabled_check.toggled.connect(lambda v: self._on_position_enabled_toggled("position_2_enabled", v))
+        self.nav_enabled_check.toggled.connect(
+            lambda v: self._on_position_enabled_toggled("position_2_enabled", v)
+        )
         grid.addWidget(self.nav_enabled_check, 1, 3)
         layout.addLayout(grid)
 
@@ -897,11 +941,13 @@ class ThrottleController(QObject):
             value_label = self._label("")
             value_label.setMinimumWidth(40)
             row.addWidget(value_label)
-            set_btn = QPushButton("Set"); set_btn.setStyleSheet(_SMALL_BTN_STYLE)
+            set_btn = QPushButton("Set")
+            set_btn.setStyleSheet(_SMALL_BTN_STYLE)
             set_btn.setToolTip("Mark the current throttle position")
             set_btn.clicked.connect(lambda _=False, k=key: self._set_detent(k))
             row.addWidget(set_btn)
-            clr_btn = QPushButton("Clear"); clr_btn.setStyleSheet(_SMALL_BTN_STYLE)
+            clr_btn = QPushButton("Clear")
+            clr_btn.setStyleSheet(_SMALL_BTN_STYLE)
             clr_btn.clicked.connect(lambda _=False, k=key: self._clear_detent(k))
             row.addWidget(clr_btn)
             chirp = QCheckBox("Chirp")
@@ -933,7 +979,9 @@ class ThrottleController(QObject):
     def _color_button(self, hex_color, on_clicked):
         btn = QPushButton()
         btn.setFixedSize(28, 20)
-        btn.setStyleSheet(f"background: {hex_color}; border: 1px solid {theme.BORDER_FLAT}; border-radius: 4px;")
+        btn.setStyleSheet(
+            f"background: {hex_color}; border: 1px solid {theme.BORDER_FLAT}; border-radius: 4px;"
+        )
         btn.clicked.connect(on_clicked)
         return btn
 
@@ -988,8 +1036,11 @@ class ThrottleController(QObject):
     # -- polling / drawing ------------------------------------------------
     def _poll(self):
         try:
-            if JOYSTICKS.pump() and self._device is not None \
-                    and self._device not in JOYSTICKS.devices.values():
+            if (
+                JOYSTICKS.pump()
+                and self._device is not None
+                and self._device not in JOYSTICKS.devices.values()
+            ):
                 self._device = None  # unplugged: never touch its handle again
                 self._rescan_requested = True
                 self._set_status(RECONNECT_STATUS_UNAVAILABLE)
@@ -1020,13 +1071,20 @@ class ThrottleController(QObject):
             # pop-in and pop-out repaints of the home flash explicitly.
             self._bar.update()
             QTimer.singleShot(int(HOME_FLASH_DURATION * 1000) + 20, self._bar.update)
-            if self.settings["home_chirp_enabled"] and now - self._last_chirp_time >= self.settings["home_chirp_cooldown"]:
+            if (
+                self.settings["home_chirp_enabled"]
+                and now - self._last_chirp_time >= self.settings["home_chirp_cooldown"]
+            ):
                 play_home_tick(self.settings["home_chirp_count"])
                 self._last_chirp_time = now
         self._prev_in_home = in_home
         for key in ("detent_1", "detent_2"):
             pos = self.settings.get(key)
-            if pos is not None and self.settings.get(f"{key}_chirp") and detent_crossed(self._prev_value, value, pos):
+            if (
+                pos is not None
+                and self.settings.get(f"{key}_chirp")
+                and detent_crossed(self._prev_value, value, pos)
+            ):
                 play_home_tick(1)
         self._prev_value = value
 
@@ -1102,20 +1160,26 @@ class ThrottleController(QObject):
         self._bar.update()
 
     def _on_pick_line_color(self):
-        color = QColorDialog.getColor(QColor(self.settings["line_color"]), self._settings_parent, "Line color")
+        color = QColorDialog.getColor(
+            QColor(self.settings["line_color"]), self._settings_parent, "Line color"
+        )
         if color.isValid():
             self.settings["line_color"] = color.name()
             self.line_color_btn.setStyleSheet(
-                f"background: {color.name()}; border: 1px solid {theme.BORDER_FLAT}; border-radius: 4px;")
+                f"background: {color.name()}; border: 1px solid {theme.BORDER_FLAT}; border-radius: 4px;"
+            )
             self._save()
             self._bar.update()
 
     def _on_pick_bg_color(self):
-        color = QColorDialog.getColor(QColor(self.settings["bg_color"]), self._settings_parent, "Background color")
+        color = QColorDialog.getColor(
+            QColor(self.settings["bg_color"]), self._settings_parent, "Background color"
+        )
         if color.isValid():
             self.settings["bg_color"] = color.name()
             self.bg_color_btn.setStyleSheet(
-                f"background: {color.name()}; border: 1px solid {theme.BORDER_FLAT}; border-radius: 4px;")
+                f"background: {color.name()}; border: 1px solid {theme.BORDER_FLAT}; border-radius: 4px;"
+            )
             self._save()
             self._bar.update()
 
@@ -1228,11 +1292,15 @@ class ThrottleController(QObject):
 
     def _set_detent(self, key):
         self.settings[key] = round(self._bar.value, 3)
-        self._save(); self._render_detents(); self._bar.update()
+        self._save()
+        self._render_detents()
+        self._bar.update()
 
     def _clear_detent(self, key):
         self.settings[key] = None
-        self._save(); self._render_detents(); self._bar.update()
+        self._save()
+        self._render_detents()
+        self._bar.update()
 
     def _on_detent_chirp_toggled(self, key, value):
         self.settings[f"{key}_chirp"] = bool(value)
@@ -1242,7 +1310,9 @@ class ThrottleController(QObject):
     def start_detect(self):
         if self._detector is not None:
             return
-        self._set_status("Move only your throttle through its range, then leave it away from where it started…")
+        self._set_status(
+            "Move only your throttle through its range, then leave it away from where it started…"
+        )
         if getattr(self, "detect_btn", None) is not None:
             self.detect_btn.setEnabled(False)
         self._detector = AxisDetector(self._on_detect_done)
@@ -1280,8 +1350,6 @@ class ThrottleController(QObject):
         self._position_hotkey.shutdown()
 
 
-
-
 # -- pure helpers for v1 features (unit-tested) -----------------------------
 DETECT_SECONDS = 3.0
 DETECT_MIN_TRAVEL = 0.25  # an axis must sweep at least this much (of 2.0)
@@ -1303,6 +1371,7 @@ def pick_axis(ranges: dict, min_travel: float = DETECT_MIN_TRAVEL, ends: dict = 
     Prefers throttle-like axes: moved >= min_travel AND ended away from where
     it started (a throttle stays put; a sprung stick axis returns to its start).
     Falls back to the largest sweep only if no axis stayed put."""
+
     def best_of(keys):
         best, travel = None, min_travel
         for k in keys:
@@ -1310,9 +1379,9 @@ def pick_axis(ranges: dict, min_travel: float = DETECT_MIN_TRAVEL, ends: dict = 
             if hi - lo > travel:
                 best, travel = k, hi - lo
         return best
+
     if ends:
-        stayed = [k for k in ranges if k in ends
-                  and abs(ends[k][1] - ends[k][0]) >= DETECT_CENTER_BAND]
+        stayed = [k for k in ranges if k in ends and abs(ends[k][1] - ends[k][0]) >= DETECT_CENTER_BAND]
         k = best_of(stayed)
         if k is not None:
             return k

@@ -13,6 +13,7 @@ msvcrt on Windows). The lock is held for the process's lifetime — closing or
 crashing releases it automatically, no cleanup code needed. A second instance
 that tries to acquire the same lock fails immediately and can show a dialog.
 """
+
 import sys
 from pathlib import Path
 
@@ -23,6 +24,7 @@ LOCK_FILENAME = ".mobithrottle.lock"
 
 class SingleInstanceError(Exception):
     """Another mobiThrottle instance is already running."""
+
     pass
 
 
@@ -50,6 +52,7 @@ class SingleInstance:
 
         if sys.platform == "win32":
             import msvcrt
+
             try:
                 msvcrt.locking(self._lock_file.fileno(), msvcrt.LK_NBLCK, 1)
             except OSError:
@@ -64,14 +67,14 @@ class SingleInstance:
                 )
         else:
             import fcntl
+
             try:
                 fcntl.flock(self._lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
             except OSError:
                 self._lock_file.close()
                 self._lock_file = None
                 raise SingleInstanceError(
-                    "mobiThrottle is already running.\n\n"
-                    "Only one instance can run at a time."
+                    "mobiThrottle is already running.\n\nOnly one instance can run at a time."
                 )
 
         self._lock_file.write(str(sys.executable))
@@ -82,12 +85,14 @@ class SingleInstance:
         if self._lock_file is not None:
             if sys.platform == "win32":
                 import msvcrt
+
                 try:
                     msvcrt.locking(self._lock_file.fileno(), msvcrt.LK_UNLCK, 1)
                 except OSError:
                     pass
             else:
                 import fcntl
+
                 try:
                     fcntl.flock(self._lock_file.fileno(), fcntl.LOCK_UN)
                 except OSError:
