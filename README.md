@@ -36,6 +36,15 @@ and keeps whatever you already set. Reopen it any time from Settings → **SETUP
 - **Positions**: save two bar locations (SCM / NAV) and jump between them.
 - **Hotkeys** (optional, none by default): toggle the bar or swap positions from anywhere.
 
+## Extras
+
+- **Centre-zero colours** (Settings → Appearance, off by default): the moving indicator turns
+  green above zero and red below, keeping your line colour in a small band around zero.
+- **Disconnect alert** (Settings → Device, on by default): if your selected controller is
+  unplugged the bar greys out and plays one low tone; it returns to normal when reconnected.
+- The setup guide's Axis and Direction steps show a live readout (raw value, min/max, rest
+  jitter) with a one-line hint about Reverse and a suggested deadzone.
+
 ## Settings file
 
 Everything is saved to `config.json` **next to `mobiThrottle.exe`**. Delete it to reset to defaults.

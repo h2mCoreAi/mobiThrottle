@@ -11,7 +11,7 @@ mobithrottle/
                      colour helpers, default bar position
   devices.py         _Joysticks single owner (hot-plug, never re-inits), list/find_joystick, chirp
   widgets.py         settings-panel styles, _Stepper, _HotkeyField
-  detect.py          detent_crossed / pick_axis / AxisDetector (v1 additions)
+  detect.py          detent_crossed / pick_axis / AxisDetector (v1 additions); AxisStats readout
   settings_window.py card-styled window hosting build_settings(); close = hide to tray;
                      build_card() (shared card+header) and the SETUP GUIDE button
   setup_guide.py     SetupGuide wizard: QStackedWidget of 11 _Step pages + LiveBar preview.
